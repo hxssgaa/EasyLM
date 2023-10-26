@@ -22,8 +22,8 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.llama.llama_t
     --logger.prefix='EasyLM' \
     --logger.project="my_llama2_7b" \
     --dtype=bf16 \
-    --optimizer.adamw_optimizer.lr=5e-5 \
-    --optimizer.adamw_optimizer.end_lr=1e-5 \
+    --optimizer.adamw_optimizer.lr=1e-4 \
+    --optimizer.adamw_optimizer.end_lr=5e-5 \
     --optimizer.accumulate_gradient_steps=8 \
     --optimizer.adamw_optimizer.lr_warmup_steps=2000 \
     --optimizer.adamw_optimizer.lr_decay_steps=150000 \
