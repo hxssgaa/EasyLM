@@ -1,0 +1,29 @@
+export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
+
+WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.llama.llama_train \
+    --total_steps=500 \
+    --mesh_dim='1,8,-1' \
+    --log_freq=100 \
+    --save_model_freq=200 \
+    --load_llama_config='7b' \
+    --tokenizer.vocab_file='gs://hxtpu_bucket/llama2_tokenizer.model' \
+    --load_checkpoint='params::gs://hxtpu_bucket/llama2_7b_easylm' \
+    --train_dataset.text_processor.fields="[instruction+input],output" \
+    --train_dataset.type=huggingface \
+    --train_dataset.huggingface_dataset.path='tatsu-lab/alpaca' \
+    --train_dataset.huggingface_dataset.name='en' \
+    --train_dataset.huggingface_dataset.streaming=True \
+    --train_dataset.huggingface_dataset.seq_length=2048 \
+    --train_dataset.huggingface_dataset.batch_size=128 \
+    --logger.output_dir='output_7b' \
+    --logger.online=True \
+    --logger.prefix='EasyLM' \
+    --logger.project="MyLLaMA-7B" \
+    --dtype=bf16 \
+    --optimizer.adamw_optimizer.lr=5e-5 \
+    --optimizer.adamw_optimizer.end_lr=3e-5 \
+    --optimizer.accumulate_gradient_steps=1 \
+    --optimizer.adamw_optimizer.lr_warmup_steps=200 \
+    --optimizer.adamw_optimizer.lr_decay_steps=500 \
+    --checkpointer.save_optimizer_state=False \
+    --jax_distributed.initialize_jax_distributed=True
