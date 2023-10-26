@@ -11,6 +11,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.llama.llama_t
     --tokenizer.vocab_file='gs://hxtpu_bucket/llama2_tokenizer.model' \
     --load_checkpoint='params::gs://hxtpu_bucket/llama2_7b_easylm' \
     --llama.remat_attention='checkpoint_dots' \
+    --llama.max_sequence_length=4096 \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.type=huggingface \
     --train_dataset.huggingface_dataset.path='wikitext' \
