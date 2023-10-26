@@ -322,8 +322,8 @@ logger = logging.get_logger(__name__)
 class RMSNorm(nn.Module):
     dim: int
     eps: float=1e-6
-    dtype: jnp.dtype=jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype=jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
 
     def setup(self) -> None:
         self.weight = self.param(
@@ -337,7 +337,7 @@ class RMSNorm(nn.Module):
         return x * jax.lax.rsqrt(jnp.square(x).mean(-1, keepdims=True) + self.eps)
 
     def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
-        x = x.astype(jnp.promote_types(self.dtype, jnp.float32))
+        x = x.astype(jnp.promote_types(self.dtype, jnp.bfloat16))
         output = self._norm(x).astype(self.dtype)
         weight = jnp.asarray(self.weight, self.dtype)
         return output * weight
@@ -354,7 +354,7 @@ def apply_rotary_emb(
     xq: jnp.ndarray,
     xk: jnp.ndarray,
     freqs_cis: jnp.ndarray,
-    dtype: jnp.dtype=jnp.float32,
+    dtype: jnp.dtype=jnp.bfloat16,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
 
     reshape_xq = xq.astype(jnp.float32).reshape(*xq.shape[:-1], -1, 2)
@@ -377,8 +377,8 @@ def apply_rotary_emb(
 
 class FlaxLLaMAAttention(nn.Module):
     config: LLaMAConfig
-    dtype: jnp.dtype=jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype=jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self):
@@ -562,7 +562,7 @@ class FlaxLLaMAAttention(nn.Module):
                 dropout_rng=dropout_rng,
                 dropout_rate=self.config.attn_pdrop,
                 deterministic=deterministic,
-                dtype=jnp.promote_types(self.dtype, jnp.float32),
+                dtype=jnp.promote_types(self.dtype, jnp.bfloat16),
                 precision=self.precision,
             )
             attn_weights = with_sharding_constraint(attn_weights, PS(("dp", "fsdp"), "mp", None, None))
@@ -577,8 +577,8 @@ class FlaxLLaMAAttention(nn.Module):
 
 class FlaxLLaMAMLP(nn.Module):
     config: LLaMAConfig
-    dtype: jnp.dtype=jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype=jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self) -> None:
@@ -618,8 +618,8 @@ class FlaxLLaMAMLP(nn.Module):
 
 class FlaxLLaMABlock(nn.Module):
     config: LLaMAConfig
-    dtype: jnp.dtype=jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype=jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self) -> None:
@@ -721,7 +721,7 @@ class FlaxLLaMAPreTrainedModel(FlaxPreTrainedModel):
         config: LLaMAConfig,
         input_shape: Tuple = (1, 1),
         seed: int = 0,
-        dtype: jnp.dtype = jnp.float32,
+        dtype: jnp.dtype = jnp.bfloat16,
         _do_init: bool = True,
         **kwargs,
     ):
@@ -855,8 +855,8 @@ class FlaxLLaMAPreTrainedModel(FlaxPreTrainedModel):
 
 class FlaxLLaMABlockCollection(nn.Module):
     config: LLaMAConfig
-    dtype: jnp.dtype = jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype = jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self):
@@ -933,8 +933,8 @@ class FlaxLLaMABlockCollection(nn.Module):
 
 class FlaxLLaMAModule(nn.Module):
     config: LLaMAConfig
-    dtype: jnp.dtype = jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype = jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self):
@@ -1009,8 +1009,8 @@ class FlaxLLaMAModel(FlaxLLaMAPreTrainedModel):
 
 class FlaxLLaMAForCausalLMModule(nn.Module):
     config: LLaMAConfig
-    dtype: jnp.dtype = jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype = jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self):

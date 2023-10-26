@@ -1,6 +1,6 @@
 export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
 
-# export LIBTPU_INIT_ARGS='--xla_jf_spmd_threshold_for_windowed_einsum_mib=0 --xla_tpu_spmd_threshold_for_allgather_cse=10000 --xla_tpu_spmd_rewrite_einsum_with_reshape=true --xla_enable_async_all_gather=true --xla_tpu_enable_latency_hiding_scheduler=true TPU_MEGACORE=MEGACORE_DENSE'
+export LIBTPU_INIT_ARGS='--xla_jf_spmd_threshold_for_windowed_einsum_mib=0 --xla_tpu_spmd_threshold_for_allgather_cse=10000 --xla_tpu_spmd_rewrite_einsum_with_reshape=true --xla_enable_async_all_gather=true --xla_tpu_enable_latency_hiding_scheduler=true TPU_MEGACORE=MEGACORE_DENSE'
 
 WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.llama.llama_train \
     --total_steps=150000 \
@@ -11,14 +11,14 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.llama.llama_t
     --tokenizer.vocab_file='gs://hxtpu_bucket/llama2_tokenizer.model' \
     --load_checkpoint='params::gs://hxtpu_bucket/llama2_7b_easylm' \
     --llama.remat_attention='checkpoint_dots' \
-    --llama.max_sequence_length=4096 \
+    --llama.max_sequence_length=2048 \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.type=huggingface \
     --train_dataset.huggingface_dataset.path='wikitext' \
     --train_dataset.huggingface_dataset.name='wikitext-103-v1' \
     --train_dataset.huggingface_dataset.streaming=True \
-    --train_dataset.huggingface_dataset.seq_length=4096 \
-    --train_dataset.huggingface_dataset.batch_size=128 \
+    --train_dataset.huggingface_dataset.seq_length=2048 \
+    --train_dataset.huggingface_dataset.batch_size=256 \
     --logger.output_dir='gs://hxtpu_bucket/llama2_mc4' \
     --logger.online=True \
     --logger.prefix='EasyLM' \
