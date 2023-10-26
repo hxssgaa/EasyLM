@@ -12,8 +12,8 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.llama.llama_t
     --load_checkpoint='params::gs://hxtpu_bucket/llama2_7b_easylm' \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.type=huggingface \
-    --train_dataset.huggingface_dataset.path='allenai/c4' \
-    --train_dataset.huggingface_dataset.name='en' \
+    --train_dataset.huggingface_dataset.path='wikitext' \
+    --train_dataset.huggingface_dataset.name='wikitext-103-v1' \
     --train_dataset.huggingface_dataset.streaming=True \
     --train_dataset.huggingface_dataset.seq_length=2048 \
     --train_dataset.huggingface_dataset.batch_size=256 \
