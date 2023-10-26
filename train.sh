@@ -6,7 +6,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.llama.llama_t
     --total_steps=150000 \
     --mesh_dim='1,8,-1' \
     --log_freq=100 \
-    --save_model_freq=200 \
+    --save_model_freq=1000 \
     --load_llama_config='7b' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/llama2_tokenizer.model' \
     --load_checkpoint='params::gs://hxtpu_bucket/llama2_7b_easylm' \
