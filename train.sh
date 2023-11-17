@@ -4,7 +4,7 @@ export LIBTPU_INIT_ARGS='--xla_jf_spmd_threshold_for_windowed_einsum_mib=0 --xla
 
 WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.llama.llama_train \
     --total_steps=150000 \
-    --mesh_dim='1,8,-1' \
+    --mesh_dim='!1,8,-1' \
     --log_freq=100 \
     --save_model_freq=1000 \
     --load_llama_config='7b' \
