@@ -690,12 +690,12 @@ class FlaxGPTJPreTrainedModel(FlaxPreTrainedModel):
         random_params = module_init_outputs["params"]
 
         if params is not None:
-            random_params = flatten_dict(unfreeze(random_params))
-            params = flatten_dict(unfreeze(params))
+            random_params = flatten_dict(random_params)
+            params = flatten_dict(params)
             for missing_key in self._missing_keys:
                 params[missing_key] = random_params[missing_key]
             self._missing_keys = set()
-            return freeze(unflatten_dict(params))
+            return unflatten_dict(params)
         else:
             return random_params
 

@@ -11,7 +11,6 @@ import jax.numpy as jnp
 from jax import lax
 from jax.sharding import PartitionSpec as PS
 import flax.linen as nn
-from flax.core.frozen_dict import FrozenDict, freeze, unfreeze
 from flax.linen import combine_masks, make_causal_mask
 from flax.linen.attention import dot_product_attention_weights
 from flax.traverse_util import flatten_dict, unflatten_dict
@@ -728,7 +727,7 @@ class FlaxLLaMAPreTrainedModel(FlaxPreTrainedModel):
         module = self.module_class(config=config, dtype=dtype, **kwargs)
         super().__init__(config, module, input_shape=input_shape, seed=seed, dtype=dtype, _do_init=_do_init)
 
-    def init_weights(self, rng: jax.random.PRNGKey, input_shape: Tuple, params: FrozenDict = None) -> FrozenDict:
+    def init_weights(self, rng: jax.random.PRNGKey, input_shape: Tuple, params: dict = None) -> dict:
         # init input tensors
         input_ids = jnp.zeros(input_shape, dtype="i4")
         attention_mask = jnp.ones_like(input_ids)
@@ -754,12 +753,12 @@ class FlaxLLaMAPreTrainedModel(FlaxPreTrainedModel):
         random_params = module_init_outputs["params"]
 
         if params is not None:
-            random_params = flatten_dict(unfreeze(random_params))
-            params = flatten_dict(unfreeze(params))
+            random_params = flatten_dict(random_params)
+            params = flatten_dict(params)
             for missing_key in self._missing_keys:
                 params[missing_key] = random_params[missing_key]
             self._missing_keys = set()
-            return freeze(unflatten_dict(params))
+            return unflatten_dict(params)
         else:
             return random_params
 
@@ -844,11 +843,11 @@ class FlaxLLaMAPreTrainedModel(FlaxPreTrainedModel):
         # add updated cache to model output
         if past_key_values is not None and return_dict:
             outputs, past_key_values = outputs
-            outputs["past_key_values"] = unfreeze(past_key_values["cache"])
+            outputs["past_key_values"] = past_key_values["cache"]
             return outputs
         elif past_key_values is not None and not return_dict:
             outputs, past_key_values = outputs
-            outputs = outputs[:1] + (unfreeze(past_key_values["cache"]),) + outputs[1:]
+            outputs = outputs[:1] + (past_key_values["cache"],) + outputs[1:]
 
         return outputs
 
