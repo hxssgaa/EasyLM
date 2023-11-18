@@ -548,12 +548,12 @@ class FlaxLLaMAAttention(nn.Module):
             attention_mask = combine_masks(attention_mask, causal_mask, fcm_mask)
 
             # transform boolean mask into float mask
-            attention_bias = lax.select(
-                attention_mask > 0,
-                jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
-                jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
-            )
-            attention_bias = jnp.repeat(attention_mask, xq.shape[1], axis=1)
+            # attention_bias = lax.select(
+            #     attention_mask > 0,
+            #     jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
+            #     jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
+            # )
+            # attention_bias = jnp.repeat(attention_mask, xq.shape[1], axis=1)
 
             mesh = thread_resources.env.physical_mesh
 
@@ -570,7 +570,8 @@ class FlaxLLaMAAttention(nn.Module):
                     PS(batch_axis_names, None, tensor_parallel_axis_name, None),
                     PS(batch_axis_names, None, tensor_parallel_axis_name, None),
                     # Bias [batch_size, num_heads, seq_len, seq_len].
-                    PS(batch_axis_names, tensor_parallel_axis_name, None, None),
+                    PS(None, None, None, None)
+                    # PS(batch_axis_names, tensor_parallel_axis_name, None, None),
                     # PS(("dp", "fsdp"), None, "mp", None),
                     # PS(("dp", "fsdp"), None, "mp", None),
                     # PS(("dp", "fsdp"), None, "mp", None),
@@ -590,12 +591,12 @@ class FlaxLLaMAAttention(nn.Module):
             xq = jnp.swapaxes(xq, 1, 2)
             xk = jnp.swapaxes(xk, 1, 2)
             xv = jnp.swapaxes(xv, 1, 2)
-            
+
             attn_output = partitioned_mha(
                 xq,
                 xk,
                 xv,
-                attention_bias,
+                None,
             )
             attn_output = attn_output.reshape(attn_output.shape[0], -1, attn_output.shape[2])
             attn_output = self.wo(attn_output)
