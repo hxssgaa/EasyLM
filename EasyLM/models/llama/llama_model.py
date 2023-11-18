@@ -490,9 +490,9 @@ class FlaxLLaMAAttention(nn.Module):
     ):
         xq, xk, xv = self.wq(hidden_states), self.wk(hidden_states), self.wv(hidden_states)
 
-        xq = with_sharding_constraint(xq, PS(("dp", "fsdp"), None, "mp"))
-        xk = with_sharding_constraint(xk, PS(("dp", "fsdp"), None, "mp"))
-        xv = with_sharding_constraint(xv, PS(("dp", "fsdp"), None, "mp"))
+        # xq = with_sharding_constraint(xq, PS(("dp", "fsdp"), None, "mp"))
+        # xk = with_sharding_constraint(xk, PS(("dp", "fsdp"), None, "mp"))
+        # xv = with_sharding_constraint(xv, PS(("dp", "fsdp"), None, "mp"))
 
         xq = self._split_heads(xq)
         xk = self._split_heads(xk)
