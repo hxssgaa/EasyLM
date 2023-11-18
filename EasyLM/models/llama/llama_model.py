@@ -599,7 +599,7 @@ class FlaxLLaMAAttention(nn.Module):
                 xq,
                 xk,
                 xv,
-                None,
+                attention_bias,
             )
             attn_output = attn_output.reshape(attn_output.shape[0], -1, attn_output.shape[2])
             attn_output = self.wo(attn_output)
