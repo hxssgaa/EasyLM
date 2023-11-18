@@ -18,7 +18,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.llama.llama_
     --train_dataset.huggingface_dataset.name='en' \
     --train_dataset.huggingface_dataset.streaming=True \
     --train_dataset.huggingface_dataset.seq_length=4096 \
-    --train_dataset.huggingface_dataset.batch_size=128 \
+    --train_dataset.huggingface_dataset.batch_size=256 \
     --logger.output_dir='gs://hxtpu_bucket/llama2_mc4' \
     --logger.online=False \
     --logger.prefix='EasyLM' \
@@ -26,7 +26,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.llama.llama_
     --dtype=bf16 \
     --optimizer.adamw_optimizer.lr=1e-4 \
     --optimizer.adamw_optimizer.end_lr=5e-5 \
-    --optimizer.accumulate_gradient_steps=16 \
+    --optimizer.accumulate_gradient_steps=8 \
     --optimizer.adamw_optimizer.lr_warmup_steps=2000 \
     --optimizer.adamw_optimizer.lr_decay_steps=150000 \
     --optimizer.adamw_optimizer.bf16_momentum=True \
