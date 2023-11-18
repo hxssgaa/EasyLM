@@ -556,15 +556,20 @@ class FlaxLLaMAAttention(nn.Module):
 
             mesh = thread_resources.env.physical_mesh
 
+            batch_axis_names = mesh.axis_names[:-1]
+            # We also assume that the last axis is for tensor-parallelism.
+            tensor_parallel_axis_name = mesh.axis_names[-1]
+
             partitioned_mha = shard_map(
                 self.jit_attn,
                 mesh=mesh,
                 in_specs=(
                     # QKV [batch_size, seq_len, num_heads, per_head_dim].
-                    PS(None, None, None, None),
-                    PS(None, None, None, None),
-                    PS(None, None, None, None),
-                    PS(None, None, None, None),
+                    PS(batch_axis_names, None, tensor_parallel_axis_name, None),
+                    PS(batch_axis_names, None, tensor_parallel_axis_name, None),
+                    PS(batch_axis_names, None, tensor_parallel_axis_name, None),
+                    # Bias [batch_size, num_heads, seq_len, seq_len].
+                    PS(batch_axis_names, tensor_parallel_axis_name, None, None),
                     # PS(("dp", "fsdp"), None, "mp", None),
                     # PS(("dp", "fsdp"), None, "mp", None),
                     # PS(("dp", "fsdp"), None, "mp", None),
@@ -573,7 +578,7 @@ class FlaxLLaMAAttention(nn.Module):
                 ),
                 # O [batch_size, seq_len, num_heads, per_head_dim].
                 # out_specs=PS(("dp", "fsdp"), None, "mp", None),
-                out_specs=PS(None, None, None, None),
+                out_specs=PS(batch_axis_names, None, tensor_parallel_axis_name, None),
                 # Disables a checking pass which jax can't apply when there's a triton | pallas
                 # call in the body.
                 check_rep=False,
