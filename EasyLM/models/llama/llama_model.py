@@ -554,7 +554,7 @@ class FlaxLLaMAAttention(nn.Module):
                 jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
             )
 
-            jax.debug.breakpoint()
+            print('debug:', attention_bias.shape)
             # attention_bias = jnp.repeat(attention_mask, xq.shape[1], axis=1)
 
             mesh = thread_resources.env.physical_mesh
