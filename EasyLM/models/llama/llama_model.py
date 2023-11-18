@@ -537,7 +537,6 @@ class FlaxLLaMAAttention(nn.Module):
             )
             attn_output = with_sharding_constraint(attn_output, PS(("dp", "fsdp"), None, "mp", None))
         elif self.config.flash_attention and not (self.has_variable("cache", "cached_key") or init_cache):
-            print('Used flash attention')
             query_length, key_length = xq.shape[1], xk.shape[1]
 
             causal_mask = self.causal_mask[:, :, :query_length, :key_length]
