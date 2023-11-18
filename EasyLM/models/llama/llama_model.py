@@ -624,6 +624,7 @@ class FlaxLLaMAAttention(nn.Module):
 
             batch_size = hidden_states.shape[0]
             causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
+            jax.debug.breakpoint()
 
             attention_mask = jnp.broadcast_to(jnp.expand_dims(attention_mask, axis=(-3, -2)), causal_mask.shape)
             attention_mask = combine_masks(attention_mask, causal_mask, fcm_mask)
