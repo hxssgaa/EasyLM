@@ -555,7 +555,7 @@ class FlaxLLaMAAttention(nn.Module):
                 jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
             )
 
-            mesh = thread_resources.env.physical_mesh
+            mesh = get_jax_mesh('1,16,-1')
 
             partitioned_mha = shard_map(
                 self.jit_attn,
