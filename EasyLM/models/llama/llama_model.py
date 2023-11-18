@@ -256,7 +256,7 @@ class LLaMAConfig(PretrainedConfig):
             # embeddings
             ("transformer/wte/embedding", PS("mp", "fsdp")),
             # atention
-            ("attention/(wq|wk|wv)/kernel", PS("fsdp", "mp")),
+            # ("attention/(wq|wk|wv)/kernel", PS("fsdp", "mp")),
             ("attention/wo/kernel", PS("mp", "fsdp")),
             # mlp
             ("feed_forward/w1/kernel", PS("fsdp", "mp")),
