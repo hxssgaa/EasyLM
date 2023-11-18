@@ -547,7 +547,7 @@ class FlaxLLaMAAttention(nn.Module):
             attention_mask = jnp.broadcast_to(jnp.expand_dims(attention_mask, axis=(-3, -2)), causal_mask.shape)
             attention_mask = combine_masks(attention_mask, causal_mask, fcm_mask)
 
-            xv = with_sharding_constraint(xv, PS(("dp", "fsdp"), None, "mp"))
+            attention_mask = with_sharding_constraint(attention_mask, PS(("dp", "fsdp"), None, "mp"))
 
             # transform boolean mask into float mask
             attention_bias = lax.select(
