@@ -4,7 +4,7 @@ export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
 
 WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.llama.llama_train \
     --total_steps=150000 \
-    --mesh_dim='1,4,-1' \
+    --mesh_dim='1,32,-1' \
     --log_freq=100 \
     --save_model_freq=1000 \
     --load_llama_config='7b' \
@@ -18,7 +18,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.llama.llama_
     --train_dataset.huggingface_dataset.name='en' \
     --train_dataset.huggingface_dataset.streaming=True \
     --train_dataset.huggingface_dataset.seq_length=4096 \
-    --train_dataset.huggingface_dataset.batch_size=64 \
+    --train_dataset.huggingface_dataset.batch_size=32 \
     --logger.output_dir='gs://hxtpu_bucket/llama2_mc4' \
     --logger.online=False \
     --logger.prefix='EasyLM' \
