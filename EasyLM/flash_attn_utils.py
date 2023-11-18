@@ -5,7 +5,7 @@ import jax
 import jax.numpy as jnp
 from absl import logging
 from jax.experimental.pallas.ops.tpu.flash_attention import BlockSizes
-from tpu_attention import tpu_flash_attention
+from EasyLM.tpu_attention import tpu_flash_attention
 
 NEG_INF=-1e15
 
