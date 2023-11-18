@@ -436,7 +436,7 @@ class FlaxLLaMAAttention(nn.Module):
         self.jit_attn = flash_attention_implementation(
             backend=jax.default_backend(),
             causal=True,
-            softmax_scale=self._scale_query(1),
+            softmax_scale=1.0,
             block_size=512,
         )
 
