@@ -15,6 +15,9 @@ from flax.linen import combine_masks, make_causal_mask
 from flax.linen.attention import dot_product_attention_weights
 from flax.traverse_util import flatten_dict, unflatten_dict
 from flax.linen import partitioning as nn_partitioning
+from flash_attn_utils import flash_attention_implementation
+from jax.experimental.shard_map import shard_map
+from jax.experimental.maps import thread_resources
 import einops
 
 import sentencepiece as spm
@@ -378,63 +381,6 @@ def apply_rotary_emb(
 
     return xq_out.astype(dtype), xk_out.astype(dtype)
 
-@partial(
-    jax.jit,
-    static_argnames=[
-        "causal",
-        "softmax_scale",
-        "block_sizes",
-    ],
-)
-def flash_attention(
-    query: jnp.ndarray,  # [batch_size, q_seq_len, num_heads, d_model]
-    key: jnp.ndarray,  # [batch_size, kv_seq_len, num_heads, d_model]
-    value: jnp.ndarray,  # [batch_size, kv_seq_len, num_heads, d_model]
-    bias: jnp.ndarray = None,  # [batch_size, num_heads, q_seq_len, kv_seq_len]
-    *,
-    causal: bool = False,
-    softmax_scale: float = 1.0,
-    block_sizes: Optional[BlockSizes] = None,
-):
-    """Wraps JAX's TPU flash-attention, with reshapes and softmax-scaling outside kernel.
-
-    N.B. we apply the softmax scale factor outside of the kernel because:
-        1. within-kernel ordering of attention-bias addition and softmax scaling differ to axlearn,
-        2. it's more efficient to scale outside the kernel vs. fix order of ops in kernel.
-
-    Args:
-        query: The query tensor, of shape [batch_size, target_seq_len, num_heads, head_dim].
-        key: The key tensor, of shape [batch_size, source_seq_len, num_heads, head_dim].
-        value: The value tensor, of shape [batch_size, source_seq_len, num_heads, head_dim].
-        bias: The attention biases, of shape [batch_size, num_heads, q_seq_len, source_seq_len].
-        causal: Whether the attention is causal (allows for additional optimizations).
-        softmax_scale: A scaling factor applied to the query.
-
-    Returns:
-        The context tensor, of shape [batch_size, q_seq_len, num_heads, head_dim].
-
-    """
-    # Apply the softmax scale outside the kernel (see docstring for why).
-    if softmax_scale != 1.0:
-        query *= softmax_scale
-    # Switch num_heads and seq_len axes.
-    query = jnp.einsum("btnh->bnth", query)
-    key = jnp.einsum("bsnh->bnsh", key)
-    value = jnp.einsum("bsnh->bnsh", value)
-    context = tpu_flash_attention(
-        q=query,
-        k=key,
-        v=value,
-        ab=bias,
-        causal=causal,
-        # If sm_scale==1.0, the kernel skips applying it.
-        sm_scale=1.0,
-        block_sizes=block_sizes,
-        debug=False,
-    )
-    # Restore num_heads and seq_len axes.
-    return jnp.einsum("bnth->btnh", context)
-
 class FlaxLLaMAAttention(nn.Module):
     config: LLaMAConfig
     dtype: jnp.dtype=jnp.bfloat16
@@ -488,6 +434,13 @@ class FlaxLLaMAAttention(nn.Module):
             self.head_dim,
             config.max_sequence_length * 2,
             dtype=self.dtype,
+        )
+
+        self.jit_attn = flash_attention_implementation(
+            backend=jax.default_backend(),
+            causal=True,
+            softmax_scale=self._scale_query(1),
+            block_size=512,
         )
 
     def _split_heads(self, hidden_states):
@@ -605,7 +558,32 @@ class FlaxLLaMAAttention(nn.Module):
                 jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
             )
 
-            attn_output = flash_attention(xq, xk, xv, attention_bias, causal=True)
+            mesh = thread_resources.env.physical_mesh
+
+            partitioned_mha = shard_map(
+                self.jit_attn,
+                mesh=mesh,
+                in_specs=(
+                    # QKV [batch_size, seq_len, num_heads, per_head_dim].
+                    PS(("dp", "fsdp"), None, "mp", None),
+                    PS(("dp", "fsdp"), None, "mp", None),
+                    PS(("dp", "fsdp"), None, "mp", None),
+                    # Bias [batch_size, num_heads, seq_len, seq_len].
+                    PS(("dp", "fsdp"), "mp", None, None),
+                ),
+                # O [batch_size, seq_len, num_heads, per_head_dim].
+                out_specs=PS(("dp", "fsdp"), None, "mp", None),
+                # Disables a checking pass which jax can't apply when there's a triton | pallas
+                # call in the body.
+                check_rep=False,
+            )
+
+            attn_output = partitioned_mha(
+                xq,
+                xk,
+                xv,
+                attention_bias,
+            )
             attn_output = self._merge_heads(attn_output)
             attn_output = self.wo(attn_output)
             attn_output = self.resid_dropout(attn_output, deterministic=deterministic)
