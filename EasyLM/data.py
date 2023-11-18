@@ -151,6 +151,7 @@ class HuggingfaceDataset(object):
         config.batch_size = 8
         config.always_start_with_bos = False
         config.batch_token_dtype = 'i4'
+        config.throughput_average_window_size = 200
 
         if updates is not None:
             config.update(ConfigDict(updates).copy_and_resolve_references())
@@ -169,6 +170,10 @@ class HuggingfaceDataset(object):
     def __iter__(self):
         chunk_size = self.config.batch_size * self.config.seq_length
         total_tokens = 0
+        last_time = 0.0
+        step_times = []
+        start_time = time.time()
+        start_tokens = total_tokens
         while True:
             token_buffer = []
             loss_mask_buffer = []
@@ -178,9 +183,19 @@ class HuggingfaceDataset(object):
                 loss_mask_buffer.extend(loss_masks)
                 while len(token_buffer) > chunk_size + 1:
                     total_tokens += chunk_size
+                    step_times.append(time.time() - last_time)
+                    last_time = time.time()
+                    if len(step_times) > self.config.throughput_average_window_size:
+                        step_times = step_times[-self.config.throughput_average_window_size:]
+                    average_throughput = chunk_size / np.mean(step_times)
+                    accumulated_throughput = (
+                        (total_tokens - start_tokens) / (time.time() - start_time)
+                    )
                     metrics = {
                         'dataset_example_index': index,
                         'dataset_total_tokens': total_tokens,
+                        'dataset_accumulated_tps': accumulated_throughput,
+                        'dataset_average_tps': average_throughput,
                     }
                     batch = {
                         'input_tokens': np.array(token_buffer[:chunk_size], dtype=self.config.batch_token_dtype).reshape(
