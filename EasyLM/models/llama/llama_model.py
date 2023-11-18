@@ -553,6 +553,7 @@ class FlaxLLaMAAttention(nn.Module):
                 jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
                 jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
             )
+            attention_bias = jnp.repeat(attention_mask, xq.shape[1], axis=1)
 
             mesh = thread_resources.env.physical_mesh
 
