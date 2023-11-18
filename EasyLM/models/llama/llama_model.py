@@ -177,7 +177,7 @@ class LLaMAConfig(PretrainedConfig):
         intermediate_size=11008,
         num_hidden_layers=32,
         num_attention_heads=32,
-        max_sequence_length=2048,
+        max_sequence_length=4096,
         rms_norm_eps=1e-6,
         initializer_range=0.02,
         use_cache=True,
