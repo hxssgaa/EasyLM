@@ -192,7 +192,7 @@ class LLaMAConfig(PretrainedConfig):
         remat_attention='',
         remat_mlp='',
         scan_attention=False,
-        flash_attention=True,
+        flash_attention=False,
         scan_mlp=False,
         scan_query_chunk_size=1024,
         scan_key_chunk_size=1024,
@@ -638,6 +638,7 @@ class FlaxLLaMAAttention(nn.Module):
             attn_output = jnp.einsum("...hqk,...khd->...qhd", attn_weights, xv, precision=self.precision)
 
         attn_output = self._merge_heads(attn_output)
+        import pdb; pdb.set_trace()
         attn_output = self.wo(attn_output)
         attn_output = self.resid_dropout(attn_output, deterministic=deterministic)
         outputs = (attn_output, attn_weights) if output_attentions else (attn_output,)
