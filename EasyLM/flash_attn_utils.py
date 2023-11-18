@@ -92,7 +92,7 @@ def flash_attention_implementation(
                 value,
                 ab=bias,
                 causal=causal,
-                softmax_scale=softmax_scale,
+                sm_scale=softmax_scale,
                 block_sizes=block_sizes,
             )
             return context
