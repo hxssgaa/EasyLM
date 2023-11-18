@@ -15,7 +15,6 @@ from flax.linen import combine_masks, make_causal_mask
 from flax.linen.attention import dot_product_attention_weights
 from flax.traverse_util import flatten_dict, unflatten_dict
 from flax.linen import partitioning as nn_partitioning
-from flash_attn_utils import flash_attention_implementation
 from jax.experimental.shard_map import shard_map
 from jax.experimental.maps import thread_resources
 import einops
@@ -33,12 +32,10 @@ from ml_collections.config_dict import config_dict
 from mlxu import function_args_to_config, load_pickle, open_file
 
 from EasyLM.bpt import blockwise_ffn, blockwise_attn
+from EasyLM.flash_attn_utils import flash_attention_implementation
 from EasyLM.jax_utils import (
     with_sharding_constraint, get_jax_mesh, get_gradient_checkpoint_policy
 )
-
-from jax.experimental.pallas.ops.tpu.flash_attention import BlockSizes
-from jax.experimental.pallas.ops.tpu.flash_attention import flash_attention as tpu_flash_attention
 
 
 LLAMA_STANDARD_CONFIGS = {
