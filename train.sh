@@ -17,7 +17,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.llama.llama_
     --train_dataset.huggingface_dataset.path='mc4' \
     --train_dataset.huggingface_dataset.name='en' \
     --train_dataset.huggingface_dataset.streaming=True \
-    --train_dataset.huggingface_dataset.seq_length=2048 \
+    --train_dataset.huggingface_dataset.seq_length=4096 \
     --train_dataset.huggingface_dataset.batch_size=64 \
     --logger.output_dir='gs://hxtpu_bucket/llama2_mc4' \
     --logger.online=False \
