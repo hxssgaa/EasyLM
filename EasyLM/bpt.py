@@ -17,7 +17,7 @@ Computing ffn blockwise without materializing the large hidden tensor, training
 4x longer sequences than the memory-efficient transformer.
 Blockwise parallel transformer https://arxiv.org/abs/2305.19370 Liu et al. 2023
 """
-def blockwise_ffn(remat_ffn, inputs, chunk_size=2048, deterministic=True):
+def blockwise_ffn(remat_ffn, inputs, chunk_size=4096, deterministic=True):
     # remat_ffn: a rematerialized ffn with policy jax.checkpoint_policies.nothing_saveable()
     # inputs: (batch, seq_len, dim)
     # chunk_size: the chunk size to split the sequence
@@ -52,8 +52,8 @@ def blockwise_attn(
         dropout_rng=None,
         attn_pdrop=0.0,
         causal=True,
-        query_chunk_size=2048,
-        key_chunk_size=2048,
+        query_chunk_size=4096,
+        key_chunk_size=4096,
         dtype=jnp.float32,
         policy=jax.checkpoint_policies.nothing_saveable(),
         precision=None,
