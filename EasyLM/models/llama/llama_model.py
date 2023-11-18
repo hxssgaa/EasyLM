@@ -556,9 +556,9 @@ class FlaxLLaMAAttention(nn.Module):
 
             mesh = thread_resources.env.physical_mesh
 
-            batch_axis_names = mesh.axis_names[:-1]
+            batch_axis_names = mesh.axis_names[:-1] if mesh.axis_names else None
             # We also assume that the last axis is for tensor-parallelism.
-            tensor_parallel_axis_name = mesh.axis_names[-1]
+            tensor_parallel_axis_name = mesh.axis_names[-1] if mesh.axis_names else None
 
             partitioned_mha = shard_map(
                 self.jit_attn,
