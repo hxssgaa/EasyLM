@@ -574,6 +574,7 @@ class FlaxLLaMAAttention(nn.Module):
                 # call in the body.
                 check_rep=False,
             )
+            import pdb; pdb.set_trace()
 
             attn_output = partitioned_mha(
                 xq,
