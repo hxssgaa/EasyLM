@@ -556,11 +556,7 @@ class FlaxLLaMAAttention(nn.Module):
                 jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
             )
 
-            print('debug:', attention_bias.shape)
-            jax.debug.print("debug:{x}", x=attention_bias.shape)
-            print('debug2:', xq.shape)
-            jax.debug.print("debug2:{x}", x=xq.shape)
-            # attention_bias = jnp.repeat(attention_mask, xq.shape[1], axis=1)
+            attention_bias = jnp.squeeze(attention_mask, axis=1)
 
             mesh = thread_resources.env.physical_mesh
 
@@ -577,7 +573,7 @@ class FlaxLLaMAAttention(nn.Module):
                     PS(batch_axis_names, None, tensor_parallel_axis_name, None),
                     PS(batch_axis_names, None, tensor_parallel_axis_name, None),
                     # Bias [batch_size, num_heads, seq_len, seq_len].
-                    PS(None, None, None, None)
+                    PS(batch_axis_names, None, None)
                     # PS(batch_axis_names, tensor_parallel_axis_name, None, None),
                     # PS(("dp", "fsdp"), None, "mp", None),
                     # PS(("dp", "fsdp"), None, "mp", None),
