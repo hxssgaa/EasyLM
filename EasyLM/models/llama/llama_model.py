@@ -592,7 +592,6 @@ class FlaxLLaMAAttention(nn.Module):
                 xv,
                 attention_bias,
             )
-            attn_output = self._merge_heads(attn_output)
             attn_output = self.wo(attn_output)
             attn_output = self.resid_dropout(attn_output, deterministic=deterministic)
             return (attn_output,)
