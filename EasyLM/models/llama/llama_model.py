@@ -582,6 +582,10 @@ class FlaxLLaMAAttention(nn.Module):
             # jax.debug.breakpoint()
             # import pdb; pdb.set_trace()
 
+            xq = jnp.swapaxes(xq, 1, 2)
+            xk = jnp.swapaxes(xk, 1, 2)
+            xv = jnp.swapaxes(xv, 1, 2)
+
             attn_output = partitioned_mha(
                 xq,
                 xk,
