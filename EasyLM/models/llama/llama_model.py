@@ -191,8 +191,8 @@ class LLaMAConfig(PretrainedConfig):
         remat_block='nothing_saveable',
         remat_attention='',
         remat_mlp='',
-        scan_attention=True,
-        flash_attention=False,
+        scan_attention=False,
+        flash_attention=True,
         scan_mlp=False,
         scan_query_chunk_size=512,
         scan_key_chunk_size=512,
@@ -548,11 +548,13 @@ class FlaxLLaMAAttention(nn.Module):
             attention_mask = combine_masks(attention_mask, causal_mask, fcm_mask)
 
             # transform boolean mask into float mask
-            # attention_bias = lax.select(
-            #     attention_mask > 0,
-            #     jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
-            #     jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
-            # )
+            attention_bias = lax.select(
+                attention_mask > 0,
+                jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
+                jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
+            )
+
+            jax.debug.breakpoint()
             # attention_bias = jnp.repeat(attention_mask, xq.shape[1], axis=1)
 
             mesh = thread_resources.env.physical_mesh
