@@ -34,6 +34,9 @@ from EasyLM.jax_utils import (
     with_sharding_constraint, get_jax_mesh, get_gradient_checkpoint_policy
 )
 
+from jax.experimental.pallas.ops.tpu.flash_attention import BlockSizes
+from jax.experimental.pallas.ops.tpu.flash_attention import flash_attention as tpu_flash_attention
+
 
 LLAMA_STANDARD_CONFIGS = {
     '1b': {
@@ -189,6 +192,7 @@ class LLaMAConfig(PretrainedConfig):
         remat_attention='',
         remat_mlp='',
         scan_attention=False,
+        flash_attention=False,
         scan_mlp=False,
         scan_query_chunk_size=1024,
         scan_key_chunk_size=1024,
@@ -213,6 +217,7 @@ class LLaMAConfig(PretrainedConfig):
         self.remat_attention = remat_attention
         self.remat_mlp = remat_mlp
         self.scan_attention = scan_attention
+        self.flash_attention = flash_attention
         self.scan_mlp = scan_mlp
         self.scan_query_chunk_size = scan_query_chunk_size
         self.scan_key_chunk_size = scan_key_chunk_size
@@ -373,6 +378,62 @@ def apply_rotary_emb(
 
     return xq_out.astype(dtype), xk_out.astype(dtype)
 
+@partial(
+    jax.jit,
+    static_argnames=[
+        "causal",
+        "softmax_scale",
+        "block_sizes",
+    ],
+)
+def flash_attention(
+    query: jnp.ndarray,  # [batch_size, q_seq_len, num_heads, d_model]
+    key: jnp.ndarray,  # [batch_size, kv_seq_len, num_heads, d_model]
+    value: jnp.ndarray,  # [batch_size, kv_seq_len, num_heads, d_model]
+    bias: jnp.ndarray = None,  # [batch_size, num_heads, q_seq_len, kv_seq_len]
+    *,
+    causal: bool = False,
+    softmax_scale: float = 1.0,
+    block_sizes: Optional[BlockSizes] = None,
+):
+    """Wraps JAX's TPU flash-attention, with reshapes and softmax-scaling outside kernel.
+
+    N.B. we apply the softmax scale factor outside of the kernel because:
+        1. within-kernel ordering of attention-bias addition and softmax scaling differ to axlearn,
+        2. it's more efficient to scale outside the kernel vs. fix order of ops in kernel.
+
+    Args:
+        query: The query tensor, of shape [batch_size, target_seq_len, num_heads, head_dim].
+        key: The key tensor, of shape [batch_size, source_seq_len, num_heads, head_dim].
+        value: The value tensor, of shape [batch_size, source_seq_len, num_heads, head_dim].
+        bias: The attention biases, of shape [batch_size, num_heads, q_seq_len, source_seq_len].
+        causal: Whether the attention is causal (allows for additional optimizations).
+        softmax_scale: A scaling factor applied to the query.
+
+    Returns:
+        The context tensor, of shape [batch_size, q_seq_len, num_heads, head_dim].
+
+    """
+    # Apply the softmax scale outside the kernel (see docstring for why).
+    if softmax_scale != 1.0:
+        query *= softmax_scale
+    # Switch num_heads and seq_len axes.
+    query = jnp.einsum("btnh->bnth", query)
+    key = jnp.einsum("bsnh->bnsh", key)
+    value = jnp.einsum("bsnh->bnsh", value)
+    context = tpu_flash_attention(
+        q=query,
+        k=key,
+        v=value,
+        ab=bias,
+        causal=causal,
+        # If sm_scale==1.0, the kernel skips applying it.
+        sm_scale=1.0,
+        block_sizes=block_sizes,
+        debug=False,
+    )
+    # Restore num_heads and seq_len axes.
+    return jnp.einsum("bnth->btnh", context)
 
 class FlaxLLaMAAttention(nn.Module):
     config: LLaMAConfig
@@ -525,6 +586,29 @@ class FlaxLLaMAAttention(nn.Module):
                 prevent_cse=True,
             )
             attn_output = with_sharding_constraint(attn_output, PS(("dp", "fsdp"), None, "mp", None))
+        elif self.config.flash_attention and not (self.has_variable("cache", "cached_key") or init_cache):
+            query_length, key_length = xq.shape[1], xk.shape[1]
+
+            causal_mask = self.causal_mask[:, :, :query_length, :key_length]
+
+            batch_size = hidden_states.shape[0]
+            causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
+
+            attention_mask = jnp.broadcast_to(jnp.expand_dims(attention_mask, axis=(-3, -2)), causal_mask.shape)
+            attention_mask = combine_masks(attention_mask, causal_mask, fcm_mask)
+
+            # transform boolean mask into float mask
+            attention_bias = lax.select(
+                attention_mask > 0,
+                jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
+                jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
+            )
+
+            attn_output = flash_attention(xq, xk, xv, attention_bias, causal=True)
+            attn_output = self._merge_heads(attn_output)
+            attn_output = self.wo(attn_output)
+            attn_output = self.resid_dropout(attn_output, deterministic=deterministic)
+            return (attn_output,)
         else:
             query_length, key_length = xq.shape[1], xk.shape[1]
 
