@@ -90,7 +90,7 @@ def flash_attention_implementation(
                 query,
                 key,
                 value,
-                bias=bias,
+                ab=bias,
                 causal=causal,
                 softmax_scale=softmax_scale,
                 block_sizes=block_sizes,
