@@ -256,7 +256,7 @@ class LLaMAConfig(PretrainedConfig):
             # embeddings
             ("transformer/wte/embedding", PS("mp", "fsdp")),
             # atention
-            # ("attention/(wq|wk|wv)/kernel", PS("fsdp", "mp")),
+            ("attention/(wq|wk|wv)/kernel", PS("fsdp", "mp")),
             ("attention/wo/kernel", PS("mp", "fsdp")),
             # mlp
             ("feed_forward/w1/kernel", PS("fsdp", "mp")),
@@ -490,9 +490,9 @@ class FlaxLLaMAAttention(nn.Module):
     ):
         xq, xk, xv = self.wq(hidden_states), self.wk(hidden_states), self.wv(hidden_states)
 
-        # xq = with_sharding_constraint(xq, PS(("dp", "fsdp"), None, "mp"))
-        # xk = with_sharding_constraint(xk, PS(("dp", "fsdp"), None, "mp"))
-        # xv = with_sharding_constraint(xv, PS(("dp", "fsdp"), None, "mp"))
+        xq = with_sharding_constraint(xq, PS(("dp", "fsdp"), None, "mp"))
+        xk = with_sharding_constraint(xk, PS(("dp", "fsdp"), None, "mp"))
+        xv = with_sharding_constraint(xv, PS(("dp", "fsdp"), None, "mp"))
 
         xq = self._split_heads(xq)
         xk = self._split_heads(xk)
@@ -562,20 +562,25 @@ class FlaxLLaMAAttention(nn.Module):
                 mesh=mesh,
                 in_specs=(
                     # QKV [batch_size, seq_len, num_heads, per_head_dim].
-                    PS(("dp", "fsdp"), None, "mp", None),
-                    PS(("dp", "fsdp"), None, "mp", None),
-                    PS(("dp", "fsdp"), None, "mp", None),
-                    # Bias [batch_size, num_heads, seq_len, seq_len].
-                    PS(("dp", "fsdp"), "mp", None, None),
+                    PS(None, None, None, None),
+                    PS(None, None, None, None),
+                    PS(None, None, None, None),
+                    PS(None, None, None, None),
+                    # PS(("dp", "fsdp"), None, "mp", None),
+                    # PS(("dp", "fsdp"), None, "mp", None),
+                    # PS(("dp", "fsdp"), None, "mp", None),
+                    # # Bias [batch_size, num_heads, seq_len, seq_len].
+                    # PS(("dp", "fsdp"), "mp", None, None),
                 ),
                 # O [batch_size, seq_len, num_heads, per_head_dim].
-                out_specs=PS(("dp", "fsdp"), None, "mp", None),
+                # out_specs=PS(("dp", "fsdp"), None, "mp", None),
+                out_specs=PS(None, None, None, None),
                 # Disables a checking pass which jax can't apply when there's a triton | pallas
                 # call in the body.
                 check_rep=False,
             )
-            jax.debug.breakpoint()
-            import pdb; pdb.set_trace()
+            # jax.debug.breakpoint()
+            # import pdb; pdb.set_trace()
 
             attn_output = partitioned_mha(
                 xq,
