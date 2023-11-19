@@ -9,7 +9,6 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.llama.llama_
     --save_model_freq=1000 \
     --load_llama_config='7b' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/llama2_tokenizer.model' \
-    --load_checkpoint='params::gs://hxtpu_bucket/llama2_7b_easylm' \
     --llama.max_sequence_length=4096 \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.type=huggingface \
@@ -32,5 +31,5 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.llama.llama_
     --checkpointer.save_optimizer_state=False \
     --jax_distributed.initialize_jax_distributed=True
 
-
+#    --load_checkpoint='params::gs://hxtpu_bucket/llama2_7b_easylm' \
 #--llama.remat_attention='checkpoint_dots' \
