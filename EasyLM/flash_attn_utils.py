@@ -23,7 +23,7 @@ def mha_reference(
     """Reference multi-headed attention implementation."""
     # We apply the scale factor before the attention biases.
     q *= softmax_scale
-    logits = jnp.einsum("bnth,bnsh->btsn", q, k)
+    logits = jnp.einsum("btnh,bsnh->bnst", q, k)
 
     if bias is not None:
         logits += bias.astype(logits.dtype)
