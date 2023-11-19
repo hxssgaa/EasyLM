@@ -25,9 +25,6 @@ def mha_reference(
 ) -> jnp.ndarray:
     """Reference multi-headed attention implementation."""
     # We apply the scale factor before the attention biases.
-    q = jnp.swapaxes(q, 1, 2)
-    k = jnp.swapaxes(k, 1, 2)
-    v = jnp.swapaxes(v, 1, 2)
     q *= softmax_scale
     logits = jnp.einsum("btnh,bsnh->bnts", q, k)
 
@@ -45,7 +42,7 @@ def mha_reference(
     logits = logits.astype(jnp.float32)
     probs = jax.nn.softmax(logits, axis=-1).astype(logits_dtype)
     result = jnp.einsum("bnts,bsnh->btnh", probs, v)
-    return jnp.swapaxes(result, 1, 2)
+    return result
 
 
 @functools.partial(jax.jit, static_argnames=["causal", "softmax_scale"])
@@ -55,6 +52,7 @@ def mha_reference2(
     k: jnp.ndarray,
     v: jnp.ndarray,
     bias: Optional[jnp.ndarray] = None,
+    attention_mask: Optional[jnp.ndarray] = None,
     *,
     causal: bool = False,
     softmax_scale: float = 1.0,
@@ -62,10 +60,6 @@ def mha_reference2(
     """Reference multi-headed attention implementation."""
     # We apply the scale factor before the attention biases.
     causal_mask = make_causal_mask(jnp.ones((1, q.shape[2]), dtype="bool"), dtype="bool")
-
-    q = jnp.swapaxes(q, 1, 2)
-    k = jnp.swapaxes(k, 1, 2)
-    v = jnp.swapaxes(v, 1, 2)
     batch_size = q.shape[0]
     query_length, key_length = q.shape[1], k.shape[1]
     causal_mask = causal_mask[:, :, :query_length, :key_length]
@@ -137,6 +131,9 @@ def flash_attention_implementation(
         # shard_map-decorated function needs to be jitted.
         @jax.jit
         def jit_attn(query, key, value, bias):
+            query = jnp.swapaxes(query, 1, 2)
+            key = jnp.swapaxes(key, 1, 2)
+            value = jnp.swapaxes(value, 1, 2)
             context = tpu_flash_attention(
                 query,
                 key,
@@ -146,6 +143,7 @@ def flash_attention_implementation(
                 sm_scale=softmax_scale,
                 block_sizes=block_sizes,
             )
+            context = jnp.swapaxes(context, 1, 2)
             return context
 
         return jit_attn
