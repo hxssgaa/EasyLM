@@ -6,6 +6,7 @@ import jax.numpy as jnp
 from absl import logging
 from jax.experimental.pallas.ops.tpu.flash_attention import BlockSizes
 from EasyLM.tpu_attention import tpu_flash_attention
+from flax.linen.attention import dot_product_attention_weights
 
 NEG_INF=-1e15
 
@@ -44,6 +45,32 @@ def mha_reference(
     result = jnp.einsum("bnts,bsnh->btnh", probs, v)
     return jnp.swapaxes(result, 1, 2)
 
+
+@functools.partial(jax.jit, static_argnames=["causal", "softmax_scale"])
+@jax.default_matmul_precision("bfloat16")
+def mha_reference2(
+    q: jnp.ndarray,
+    k: jnp.ndarray,
+    v: jnp.ndarray,
+    bias: Optional[jnp.ndarray] = None,
+    *,
+    causal: bool = False,
+    softmax_scale: float = 1.0,
+) -> jnp.ndarray:
+    """Reference multi-headed attention implementation."""
+    # We apply the scale factor before the attention biases.
+    attn_weights = dot_product_attention_weights(
+        q,
+        k,
+        bias=bias,
+        dropout_rng=None,
+        dropout_rate=0.0,
+        deterministic=True,
+        dtype=jnp.promote_types(q.dtype, jnp.bfloat16),
+        precision=jnp.bfloat16,
+    )
+    attn_output = jnp.einsum("...hqk,...khd->...qhd", attn_weights, v, precision=jnp.bfloat16)
+    return attn_output
 
 # Accepts [query, key, value, attention_bias] tensors and returns the context Tensor.
 MultiHeadAttentionImpl = Callable[[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray], jnp.ndarray]

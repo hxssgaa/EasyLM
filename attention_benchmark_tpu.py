@@ -4,7 +4,7 @@ from typing import Callable
 import jax
 import jax.numpy as jnp
 
-from EasyLM.flash_attn_utils import flash_attention_implementation, mha_reference
+from EasyLM.flash_attn_utils import flash_attention_implementation, mha_reference, mha_reference2
 
 _BENCHMARK_CONFIGS = {
     "1.2b": dict(
@@ -79,6 +79,20 @@ def _benchmark(
     )
     ref_bwd_time = _time_call(lambda: grad_fn(q, k, v, bias)[0], 'ref_bwd')
 
+    ref_fwd_time2 = _time_call(
+        lambda: mha_reference2(q, k, v, bias, causal=causal, softmax_scale=softmax_scale), 'ref_fwd2'
+    )
+
+    grad_fn2 = jax.jit(
+        jax.grad(
+            lambda q, k, v, b: mha_reference2(
+                q, k, v, b, causal=causal, softmax_scale=softmax_scale
+            ).mean(),
+            argnums=(0, 1, 2),
+        )
+    )
+    ref_bwd_time2 = _time_call(lambda: grad_fn2(q, k, v, bias)[0], 'ref_bwd2')
+
     # Get fwd & bwd timing information when softmax scaling applied before calling the kernel.
     mha_impl = flash_attention_implementation(
         "tpu", causal=causal, softmax_scale=softmax_scale, block_size=block_size
@@ -91,8 +105,8 @@ def _benchmark(
     )
     flash_bwd_time = _time_call(lambda: flash_grad_fn(q, k, v, bias)[0], 'flash_bwd')
 
-    print(f"ref_fwd:{ref_fwd_time:.4f}s, flash_fwd:{flash_fwd_time:.4f}s")
-    print(f"ref_bwd:{ref_bwd_time:.4f}s, flash_bwd:{flash_bwd_time:.4f}s\n")
+    print(f"ref_fwd:{ref_fwd_time:.4f}s, ref_fwd2:{ref_fwd_time2:.4f}s, flash_fwd:{flash_fwd_time:.4f}s")
+    print(f"ref_bwd:{ref_bwd_time:.4f}s, ref_bwd2:{ref_bwd_time2:.4f}s, flash_bwd:{flash_bwd_time:.4f}s\n")
 
 
 if __name__ == "__main__":
