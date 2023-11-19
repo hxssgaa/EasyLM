@@ -441,7 +441,7 @@ class FlaxLLaMAAttention(nn.Module):
         )
 
     def _split_heads(self, hidden_states):
-        return hidden_states.reshape(hidden_states.shape[0], hidden_states.shape[2], hidden_states.shape[1], self.head_dim)
+        return hidden_states.reshape(hidden_states.shape[0], -1, hidden_states.shape[1], self.head_dim)
 
     def _merge_heads(self, hidden_states):
         return hidden_states.reshape((hidden_states.shape[0],hidden_states.shape[1]) + (self.embed_dim,))
