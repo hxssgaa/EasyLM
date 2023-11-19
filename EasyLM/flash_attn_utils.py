@@ -72,7 +72,7 @@ def mha_reference2(
         dtype=jnp.promote_types(q.dtype, jnp.bfloat16),
         precision="bfloat16",
     )
-    attn_output = jnp.einsum("...hqk,...khd->...qhd", attn_weights, v, precision=jnp.bfloat16)
+    attn_output = jnp.einsum("...hqk,...khd->...qhd", attn_weights, v, precision="bfloat16")
     return jnp.swapaxes(attn_output, 1, 2)
 
 # Accepts [query, key, value, attention_bias] tensors and returns the context Tensor.
