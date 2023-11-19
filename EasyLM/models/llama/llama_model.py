@@ -596,7 +596,6 @@ class FlaxLLaMAAttention(nn.Module):
                 attention_bias
             )
             attn_output = jnp.swapaxes(attn_output, 1, 2)
-            attn_output = attn_output.reshape(attn_output.shape[0], -1, attn_output.shape[3])
             attn_output = self._merge_heads(attn_output)
             attn_output = self.wo(attn_output)
             attn_output = self.resid_dropout(attn_output, deterministic=deterministic)
