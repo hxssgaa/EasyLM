@@ -551,10 +551,6 @@ class FlaxLLaMAAttention(nn.Module):
                 jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
                 jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
             )
-            import pdb; pdb.set_trace()
-            print('causal_mask_shape:', causal_mask.shape)
-            print('attention_mask_shape:', attention_mask.shape)
-            print('attention_bias_shape:', attention_bias.shape)
 
             mesh = thread_resources.env.physical_mesh
 
@@ -570,7 +566,7 @@ class FlaxLLaMAAttention(nn.Module):
                     PS(batch_axis_names, tensor_parallel_axis_name, None, None),
                     PS(batch_axis_names, tensor_parallel_axis_name, None, None),
                     PS(batch_axis_names, tensor_parallel_axis_name, None, None),
-                    PS(batch_axis_names, tensor_parallel_axis_name, None, None)
+                    PS(None, None, None, None)
                     # Bias [batch_size, num_heads, seq_len, seq_len].
                     # PS(batch_axis_names, None, None, None)
                     # PS(batch_axis_names, tensor_parallel_axis_name, None, None),
@@ -597,7 +593,7 @@ class FlaxLLaMAAttention(nn.Module):
                 xq,
                 xk,
                 xv,
-                attention_bias
+                None
             )
             attn_output = jnp.swapaxes(attn_output, 1, 2)
             attn_output = self._merge_heads(attn_output)
