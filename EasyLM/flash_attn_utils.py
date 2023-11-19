@@ -4,9 +4,11 @@ import functools
 import jax
 import jax.numpy as jnp
 from absl import logging
+from jax import lax
 from jax.experimental.pallas.ops.tpu.flash_attention import BlockSizes
 from EasyLM.tpu_attention import tpu_flash_attention
 from flax.linen.attention import dot_product_attention_weights
+from flax.linen import combine_masks, make_causal_mask
 
 NEG_INF=-1e15
 
@@ -59,13 +61,24 @@ def mha_reference2(
 ) -> jnp.ndarray:
     """Reference multi-headed attention implementation."""
     # We apply the scale factor before the attention biases.
+    causal_mask = make_causal_mask(jnp.ones((1, q.shape[2]), dtype="bool"), dtype="bool")
+
     q = jnp.swapaxes(q, 1, 2)
     k = jnp.swapaxes(k, 1, 2)
     v = jnp.swapaxes(v, 1, 2)
+    batch_size = q.shape[0]
+    query_length, key_length = q.shape[1], k.shape[1]
+    causal_mask = causal_mask[:, :, :query_length, :key_length]
+    causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
+    attention_bias = lax.select(
+        causal_mask > 0,
+        jnp.full(causal_mask.shape, 0.0).astype(q.dtype),
+        jnp.full(causal_mask.shape, jnp.finfo(q.dtype).min).astype(q.dtype),
+    )
     attn_weights = dot_product_attention_weights(
         q,
         k,
-        bias=bias,
+        bias=attention_bias,
         dropout_rng=None,
         dropout_rate=0.0,
         deterministic=True,
