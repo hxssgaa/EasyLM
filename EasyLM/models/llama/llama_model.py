@@ -569,10 +569,11 @@ class FlaxLLaMAAttention(nn.Module):
                 self.jit_attn,
                 mesh=mesh,
                 in_specs=(
-                    # QKV [batch_size, seq_len, num_heads, per_head_dim].
-                    PS(batch_axis_names, None, tensor_parallel_axis_name, None),
-                    PS(batch_axis_names, None, tensor_parallel_axis_name, None),
-                    PS(batch_axis_names, None, tensor_parallel_axis_name, None),
+                    # QKV [batch_size, num_heads, seq_len, per_head_dim].
+                    PS(batch_axis_names, tensor_parallel_axis_name, None, None),
+                    PS(batch_axis_names, tensor_parallel_axis_name, None, None),
+                    PS(batch_axis_names, tensor_parallel_axis_name, None, None),
+                    PS(None, None, None, None)
                     # Bias [batch_size, num_heads, seq_len, seq_len].
                     # PS(batch_axis_names, None, None, None)
                     # PS(batch_axis_names, tensor_parallel_axis_name, None, None),
@@ -582,9 +583,9 @@ class FlaxLLaMAAttention(nn.Module):
                     # # Bias [batch_size, num_heads, seq_len, seq_len].
                     # PS(("dp", "fsdp"), "mp", None, None),
                 ),
-                # O [batch_size, seq_len, num_heads, per_head_dim].
+                # O [batch_size, num_heads, seq_len, per_head_dim].
                 # out_specs=PS(("dp", "fsdp"), None, "mp", None),
-                out_specs=PS(batch_axis_names, None, tensor_parallel_axis_name, None),
+                out_specs=PS(batch_axis_names, tensor_parallel_axis_name, None, None),
                 # Disables a checking pass which jax can't apply when there's a triton | pallas
                 # call in the body.
                 check_rep=False,
@@ -599,9 +600,9 @@ class FlaxLLaMAAttention(nn.Module):
             attn_output = partitioned_mha(
                 xq,
                 xk,
-                xv
+                xv,
+                None
             )
-            jax.debug.breakpoint()
             attn_output = attn_output.reshape(attn_output.shape[0], -1, attn_output.shape[2])
             attn_output = self.wo(attn_output)
             attn_output = self.resid_dropout(attn_output, deterministic=deterministic)
