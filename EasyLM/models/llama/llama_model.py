@@ -585,6 +585,9 @@ class FlaxLLaMAAttention(nn.Module):
             )
             # jax.debug.breakpoint()
             # import pdb; pdb.set_trace()
+            xq = jnp.swapaxes(xq, 1, 2)
+            xk = jnp.swapaxes(xk, 1, 2)
+            xv = jnp.swapaxes(xv, 1, 2)
 
             attn_output = partitioned_mha(
                 xq,
@@ -592,7 +595,7 @@ class FlaxLLaMAAttention(nn.Module):
                 xv,
                 attention_bias
             )
-            attn_output = jnp.swapaxes(xv, 1, 2)
+            attn_output = jnp.swapaxes(attn_output, 1, 2)
             attn_output = attn_output.reshape(attn_output.shape[0], -1, attn_output.shape[3])
             attn_output = self._merge_heads(attn_output)
             attn_output = self.wo(attn_output)
