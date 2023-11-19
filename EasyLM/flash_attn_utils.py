@@ -75,9 +75,9 @@ def mha_reference2(
         jnp.full(causal_mask.shape, 0.0).astype(q.dtype),
         jnp.full(causal_mask.shape, jnp.finfo(q.dtype).min).astype(q.dtype),
     )
+    print('debug222:', attention_bias.shape)
     if bias is not None:
         attention_bias += bias
-    print('debug222:', bias.shape)
     attn_weights = dot_product_attention_weights(
         q,
         k,
