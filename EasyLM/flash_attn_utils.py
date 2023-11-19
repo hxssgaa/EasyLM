@@ -22,8 +22,11 @@ def mha_reference(
 ) -> jnp.ndarray:
     """Reference multi-headed attention implementation."""
     # We apply the scale factor before the attention biases.
+    q = jnp.swapaxes(q, 1, 2)
+    k = jnp.swapaxes(k, 1, 2)
+    v = jnp.swapaxes(v, 1, 2)
     q *= softmax_scale
-    logits = jnp.einsum("bnth,bnsh->bnst", q, k)
+    logits = jnp.einsum("btnh,bsnh->bnts", q, k)
 
     if bias is not None:
         logits += bias.astype(logits.dtype)
@@ -38,7 +41,8 @@ def mha_reference(
     logits_dtype = logits.dtype
     logits = logits.astype(jnp.float32)
     probs = jax.nn.softmax(logits, axis=-1).astype(logits_dtype)
-    return jnp.einsum("bnts,bsnh->btnh", probs, v)
+    result = jnp.einsum("bnts,bsnh->btnh", probs, v)
+    return jnp.swapaxes(result, 1, 2)
 
 
 # Accepts [query, key, value, attention_bias] tensors and returns the context Tensor.
