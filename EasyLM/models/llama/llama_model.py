@@ -584,8 +584,8 @@ class FlaxLLaMAAttention(nn.Module):
                 xv,
                 None
             )
-            attn_output = self._merge_heads(attn_output)
             attn_output = attn_output.reshape((attn_output.shape[0], attn_output.shape[2], attn_output.shape[1], attn_output.shape[3]))
+            attn_output = self._merge_heads(attn_output)
             attn_output = self.wo(attn_output)
             attn_output = self.resid_dropout(attn_output, deterministic=deterministic)
             return (attn_output,)
