@@ -540,6 +540,7 @@ class FlaxLLaMAAttention(nn.Module):
             query_length, key_length = xq.shape[1], xk.shape[1]
 
             batch_size = hidden_states.shape[0]
+            causal_mask = self.causal_mask[:, :, :query_length, :key_length]
             causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
             attention_mask = jnp.broadcast_to(jnp.expand_dims(attention_mask, axis=(-3, -2)), causal_mask.shape)
             attention_mask = combine_masks(attention_mask, fcm_mask)
