@@ -11,39 +11,39 @@ _BENCHMARK_CONFIGS = {
         num_heads=32,
         per_head_dim=64,
     ),
-    "12.6b": dict(
-        num_heads=40,
-        per_head_dim=128,
-    ),
-    "29.6b": dict(
-        num_heads=56,
-        per_head_dim=128,
-    ),
-    "65.2b": dict(
-        num_heads=72,
-        per_head_dim=128,
-    ),
-    "134b": dict(
-        num_heads=88,
-        per_head_dim=128,
-    ),
-    "261.7b": dict(
-        num_heads=110,
-        per_head_dim=128,
-    ),
-    "539.5b": dict(
-        num_heads=140,
-        per_head_dim=128,
-    ),
+    # "12.6b": dict(
+    #     num_heads=40,
+    #     per_head_dim=128,
+    # ),
+    # "29.6b": dict(
+    #     num_heads=56,
+    #     per_head_dim=128,
+    # ),
+    # "65.2b": dict(
+    #     num_heads=72,
+    #     per_head_dim=128,
+    # ),
+    # "134b": dict(
+    #     num_heads=88,
+    #     per_head_dim=128,
+    # ),
+    # "261.7b": dict(
+    #     num_heads=110,
+    #     per_head_dim=128,
+    # ),
+   # "539.5b": dict(
+   #     num_heads=140,
+   #     per_head_dim=128,
+   # ),
 }
 
 
-def _time_call(fn: Callable, *, num_iters: int = 5) -> float:
+def _time_call(fn: Callable, *, num_iters: int = 1) -> float:
     """Times average execution time for fn call after warmup over num_iters."""
     fn().block_until_ready()
     tic = time.perf_counter()
     for _ in range(num_iters):
-        fn().block_until_ready()
+        jax.debug.print(fn())
     toc = time.perf_counter()
     return (toc - tic) / num_iters
 
