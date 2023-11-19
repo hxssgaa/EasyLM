@@ -188,7 +188,7 @@ class LLaMAConfig(PretrainedConfig):
         embd_pdrop=0.0,
         attn_pdrop=0.0,
         tie_word_embeddings=False,
-        remat_block='',
+        remat_block='nothing_saveable',
         remat_attention='',
         remat_mlp='',
         scan_attention=False,
