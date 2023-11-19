@@ -603,6 +603,7 @@ class FlaxLLaMAAttention(nn.Module):
                 xv,
                 None
             )
+            attn_output = jnp.swapaxes(xv, 2, 3)
             # attn_output = attn_output.reshape(attn_output.shape[0], -1, attn_output.shape[2])
             attn_output = self._merge_heads(attn_output)
             attn_output = self.wo(attn_output)
