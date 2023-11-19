@@ -59,9 +59,9 @@ def _benchmark(
 ):
     """Benchmarks TPU FlashAttention vs reference impl."""
     k1, k2, k3, k4 = jax.random.split(jax.random.PRNGKey(0), 4)
-    q = jax.random.normal(k1, (batch_size, seq_len, num_heads, per_head_dim), dtype=jnp.bfloat16)
-    k = jax.random.normal(k2, (batch_size, seq_len, num_heads, per_head_dim), dtype=jnp.bfloat16)
-    v = jax.random.normal(k3, (batch_size, seq_len, num_heads, per_head_dim), dtype=jnp.bfloat16)
+    q = jax.random.normal(k1, (batch_size, num_heads, seq_len, per_head_dim), dtype=jnp.bfloat16)
+    k = jax.random.normal(k2, (batch_size, num_heads, seq_len, per_head_dim), dtype=jnp.bfloat16)
+    v = jax.random.normal(k3, (batch_size, num_heads, seq_len, per_head_dim), dtype=jnp.bfloat16)
     bias = jax.random.normal(k4, (batch_size, num_heads, seq_len, seq_len), dtype=jnp.bfloat16)
 
     softmax_scale = per_head_dim**-0.5
