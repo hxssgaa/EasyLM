@@ -588,6 +588,7 @@ class FlaxLLaMAAttention(nn.Module):
             xq = jnp.swapaxes(xq, 1, 2)
             xk = jnp.swapaxes(xk, 1, 2)
             xv = jnp.swapaxes(xv, 1, 2)
+            print(xq.shape)
 
             attn_output = partitioned_mha(
                 xq,
