@@ -102,7 +102,7 @@ if __name__ == "__main__":
         print(f"Benchmarking attention representative of {name} model layer on {device_kind}.")
         _benchmark(
             batch_size=2,
-            seq_len=2048,
+            seq_len=4096,
             block_size=4 * 128,
             **cfg,
         )
