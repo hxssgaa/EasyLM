@@ -441,10 +441,10 @@ class FlaxLLaMAAttention(nn.Module):
         )
 
     def _split_heads(self, hidden_states):
-        return hidden_states.reshape(hidden_states.shape[:2] + (self.num_heads, self.head_dim))
+        return hidden_states.reshape(hidden_states.shape[0], hidden_states.shape[2], hidden_states.shape[1], self.head_dim)
 
     def _merge_heads(self, hidden_states):
-        return hidden_states.reshape(hidden_states.shape[:2] + (self.embed_dim,))
+        return hidden_states.reshape((hidden_states.shape[0],hidden_states.shape[1]) + (self.embed_dim,))
 
     @nn.compact
     def _concatenate_to_cache(self, key, value, query, attention_mask):
@@ -494,9 +494,9 @@ class FlaxLLaMAAttention(nn.Module):
         xk = with_sharding_constraint(xk, PS(("dp", "fsdp"), None, "mp"))
         xv = with_sharding_constraint(xv, PS(("dp", "fsdp"), None, "mp"))
 
-        xq = self._split_heads(xq)
-        xk = self._split_heads(xk)
-        xv = self._split_heads(xv)
+        xq = self._split_heads(xq) # B, num_head, seq_len, head_dim
+        xk = self._split_heads(xk) # B, num_head, seq_len, head_dim
+        xv = self._split_heads(xv) # B, num_head, seq_len, head_dim
 
         freqs_cis = jnp.take(self.freqs_cis, position_ids, axis=0)
 

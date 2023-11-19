@@ -131,9 +131,6 @@ def flash_attention_implementation(
         # shard_map-decorated function needs to be jitted.
         @jax.jit
         def jit_attn(query, key, value, bias):
-            query = jnp.swapaxes(query, 1, 2)
-            key = jnp.swapaxes(key, 1, 2)
-            value = jnp.swapaxes(value, 1, 2)
             context = tpu_flash_attention(
                 query,
                 key,
@@ -143,7 +140,6 @@ def flash_attention_implementation(
                 sm_scale=softmax_scale,
                 block_sizes=block_sizes,
             )
-            context = jnp.swapaxes(context, 1, 2)
             return context
 
         return jit_attn
