@@ -66,15 +66,18 @@ def mha_reference2(
     q = jnp.swapaxes(q, 1, 2)
     k = jnp.swapaxes(k, 1, 2)
     v = jnp.swapaxes(v, 1, 2)
-    batch_size = q.shape[0]
-    query_length, key_length = q.shape[1], k.shape[1]
-    causal_mask = causal_mask[:, :, :query_length, :key_length]
-    causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
-    attention_bias = lax.select(
-        causal_mask > 0,
-        jnp.full(causal_mask.shape, 0.0).astype(q.dtype),
-        jnp.full(causal_mask.shape, jnp.finfo(q.dtype).min).astype(q.dtype),
-    )
+    if bias is None:
+        batch_size = q.shape[0]
+        query_length, key_length = q.shape[1], k.shape[1]
+        causal_mask = causal_mask[:, :, :query_length, :key_length]
+        causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
+        attention_bias = lax.select(
+            causal_mask > 0,
+            jnp.full(causal_mask.shape, 0.0).astype(q.dtype),
+            jnp.full(causal_mask.shape, jnp.finfo(q.dtype).min).astype(q.dtype),
+        )
+    else:
+        attention_bias = bias
     attn_weights = dot_product_attention_weights(
         q,
         k,
