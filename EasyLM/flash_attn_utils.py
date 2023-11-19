@@ -59,6 +59,9 @@ def mha_reference2(
 ) -> jnp.ndarray:
     """Reference multi-headed attention implementation."""
     # We apply the scale factor before the attention biases.
+    q = jnp.swapaxes(q, 1, 2)
+    k = jnp.swapaxes(k, 1, 2)
+    v = jnp.swapaxes(v, 1, 2)
     attn_weights = dot_product_attention_weights(
         q,
         k,
@@ -70,7 +73,7 @@ def mha_reference2(
         precision="bfloat16",
     )
     attn_output = jnp.einsum("...hqk,...khd->...qhd", attn_weights, v, precision=jnp.bfloat16)
-    return attn_output
+    return jnp.swapaxes(attn_output, 1, 2)
 
 # Accepts [query, key, value, attention_bias] tensors and returns the context Tensor.
 MultiHeadAttentionImpl = Callable[[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray], jnp.ndarray]
