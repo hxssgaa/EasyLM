@@ -540,17 +540,17 @@ class FlaxLLaMAAttention(nn.Module):
             query_length, key_length = xq.shape[1], xk.shape[1]
 
             batch_size = hidden_states.shape[0]
-            causal_mask = self.causal_mask[:, :, :query_length, :key_length]
-            causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
-            attention_mask = jnp.broadcast_to(jnp.expand_dims(attention_mask, axis=(-3, -2)), causal_mask.shape)
-            attention_mask = combine_masks(attention_mask, fcm_mask)
+            # causal_mask = self.causal_mask[:, :, :query_length, :key_length]
+            # causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
+            # attention_mask = jnp.broadcast_to(jnp.expand_dims(attention_mask, axis=(-3, -2)), causal_mask.shape)
+            # attention_mask = combine_masks(attention_mask, fcm_mask)
 
-            # transform boolean mask into float mask
-            attention_bias = lax.select(
-                attention_mask > 0,
-                jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
-                jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
-            )
+            # # transform boolean mask into float mask
+            # attention_bias = lax.select(
+            #     attention_mask > 0,
+            #     jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
+            #     jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
+            # )
 
             mesh = thread_resources.env.physical_mesh
 
@@ -567,24 +567,13 @@ class FlaxLLaMAAttention(nn.Module):
                     PS(batch_axis_names, tensor_parallel_axis_name, None, None),
                     PS(batch_axis_names, tensor_parallel_axis_name, None, None),
                     PS(None, None, None, None)
-                    # Bias [batch_size, num_heads, seq_len, seq_len].
-                    # PS(batch_axis_names, None, None, None)
-                    # PS(batch_axis_names, tensor_parallel_axis_name, None, None),
-                    # PS(("dp", "fsdp"), None, "mp", None),
-                    # PS(("dp", "fsdp"), None, "mp", None),
-                    # PS(("dp", "fsdp"), None, "mp", None),
-                    # # Bias [batch_size, num_heads, seq_len, seq_len].
-                    # PS(("dp", "fsdp"), "mp", None, None),
                 ),
                 # O [batch_size, num_heads, seq_len, per_head_dim].
-                # out_specs=PS(("dp", "fsdp"), None, "mp", None),
                 out_specs=PS(batch_axis_names, tensor_parallel_axis_name, None, None),
                 # Disables a checking pass which jax can't apply when there's a triton | pallas
                 # call in the body.
                 check_rep=False,
             )
-            # jax.debug.breakpoint()
-            # import pdb; pdb.set_trace()
 
             attn_output = partitioned_mha(
                 xq,
