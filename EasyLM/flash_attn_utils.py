@@ -67,7 +67,7 @@ def mha_reference2(
         dropout_rate=0.0,
         deterministic=True,
         dtype=jnp.promote_types(q.dtype, jnp.bfloat16),
-        precision=jnp.bfloat16,
+        precision="bfloat16",
     )
     attn_output = jnp.einsum("...hqk,...khd->...qhd", attn_weights, v, precision=jnp.bfloat16)
     return attn_output
