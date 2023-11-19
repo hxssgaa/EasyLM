@@ -539,15 +539,10 @@ class FlaxLLaMAAttention(nn.Module):
         elif self.config.flash_attention and not (self.has_variable("cache", "cached_key") or init_cache):
             query_length, key_length = xq.shape[1], xk.shape[1]
 
-            causal_mask = self.causal_mask[:, :, :query_length, :key_length]
-
             batch_size = hidden_states.shape[0]
             causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
-
             attention_mask = jnp.broadcast_to(jnp.expand_dims(attention_mask, axis=(-3, -2)), causal_mask.shape)
-            attention_mask = combine_masks(attention_mask, causal_mask, fcm_mask)
-
-            attention_mask = with_sharding_constraint(attention_mask, PS(("dp", "fsdp"), None, "mp"))
+            attention_mask = combine_masks(attention_mask, fcm_mask)
 
             # transform boolean mask into float mask
             attention_bias = lax.select(
@@ -555,9 +550,6 @@ class FlaxLLaMAAttention(nn.Module):
                 jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
                 jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
             )
-
-            # attention_bias = jnp.squeeze(attention_mask, axis=1)
-            attention_bias = attention_mask
 
             mesh = thread_resources.env.physical_mesh
 
@@ -573,7 +565,7 @@ class FlaxLLaMAAttention(nn.Module):
                     PS(batch_axis_names, tensor_parallel_axis_name, None, None),
                     PS(batch_axis_names, tensor_parallel_axis_name, None, None),
                     PS(batch_axis_names, tensor_parallel_axis_name, None, None),
-                    PS(None, None, None, None)
+                    PS(batch_axis_names, tensor_parallel_axis_name, None, None)
                     # Bias [batch_size, num_heads, seq_len, seq_len].
                     # PS(batch_axis_names, None, None, None)
                     # PS(batch_axis_names, tensor_parallel_axis_name, None, None),
@@ -593,17 +585,13 @@ class FlaxLLaMAAttention(nn.Module):
             # jax.debug.breakpoint()
             # import pdb; pdb.set_trace()
 
-            xq = jnp.swapaxes(xq, 1, 2)
-            xk = jnp.swapaxes(xk, 1, 2)
-            xv = jnp.swapaxes(xv, 1, 2)
-
             attn_output = partitioned_mha(
                 xq,
                 xk,
                 xv,
-                None
+                attention_bias
             )
-            attn_output = jnp.swapaxes(xv, 2, 3)
+            attn_output = jnp.swapaxes(xv, 1, 2)
             attn_output = attn_output.reshape(attn_output.shape[0], -1, attn_output.shape[3])
             attn_output = self._merge_heads(attn_output)
             attn_output = self.wo(attn_output)
