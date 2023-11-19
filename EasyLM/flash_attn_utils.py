@@ -77,6 +77,7 @@ def mha_reference2(
     )
     if bias is not None:
         attention_bias += bias
+    print('debug222:', attention_bias.shape)
     attn_weights = dot_product_attention_weights(
         q,
         k,
