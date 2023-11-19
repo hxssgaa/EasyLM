@@ -43,7 +43,7 @@ def _time_call(fn: Callable, *, num_iters: int = 1) -> float:
     fn().block_until_ready()
     tic = time.perf_counter()
     for _ in range(num_iters):
-        jax.debug.print(fn())
+        jax.debug.print("debug: {x}", x=fn())
     toc = time.perf_counter()
     return (toc - tic) / num_iters
 
