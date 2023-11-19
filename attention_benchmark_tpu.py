@@ -38,12 +38,12 @@ _BENCHMARK_CONFIGS = {
 }
 
 
-def _time_call(fn: Callable, *, num_iters: int = 1) -> float:
+def _time_call(fn: Callable, description, *, num_iters: int = 1) -> float:
     """Times average execution time for fn call after warmup over num_iters."""
     fn().block_until_ready()
     tic = time.perf_counter()
     for _ in range(num_iters):
-        jax.debug.print("debug: {x}", x=fn())
+        jax.debug.print("debug: {x}", x=fn().shape)
     toc = time.perf_counter()
     return (toc - tic) / num_iters
 
@@ -66,7 +66,7 @@ def _benchmark(
 
     softmax_scale = per_head_dim**-0.5
     ref_fwd_time = _time_call(
-        lambda: mha_reference(q, k, v, bias, causal=causal, softmax_scale=softmax_scale)
+        lambda: mha_reference(q, k, v, bias, causal=causal, softmax_scale=softmax_scale), 'ref_fwd'
     )
 
     grad_fn = jax.jit(
@@ -77,19 +77,19 @@ def _benchmark(
             argnums=(0, 1, 2),
         )
     )
-    ref_bwd_time = _time_call(lambda: grad_fn(q, k, v, bias)[0])
+    ref_bwd_time = _time_call(lambda: grad_fn(q, k, v, bias)[0], 'ref_bwd')
 
     # Get fwd & bwd timing information when softmax scaling applied before calling the kernel.
     mha_impl = flash_attention_implementation(
         "tpu", causal=causal, softmax_scale=softmax_scale, block_size=block_size
     )
 
-    flash_fwd_time = _time_call(lambda: mha_impl(q, k, v, bias))
+    flash_fwd_time = _time_call(lambda: mha_impl(q, k, v, bias), 'flash_fwd')
 
     flash_grad_fn = jax.jit(
         jax.grad(lambda q, k, v, b: mha_impl(q, k, v, b).mean(), argnums=(0, 1, 2))
     )
-    flash_bwd_time = _time_call(lambda: flash_grad_fn(q, k, v, bias)[0])
+    flash_bwd_time = _time_call(lambda: flash_grad_fn(q, k, v, bias)[0], 'flash_bwd')
 
     print(f"ref_fwd:{ref_fwd_time:.4f}s, flash_fwd:{flash_fwd_time:.4f}s")
     print(f"ref_bwd:{ref_bwd_time:.4f}s, flash_bwd:{flash_bwd_time:.4f}s\n")
