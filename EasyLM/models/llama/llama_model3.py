@@ -11,12 +11,11 @@ import jax.numpy as jnp
 from jax import lax
 from jax.sharding import PartitionSpec as PS
 import flax.linen as nn
+from flax.core.frozen_dict import FrozenDict, freeze, unfreeze
 from flax.linen import combine_masks, make_causal_mask
 from flax.linen.attention import dot_product_attention_weights
 from flax.traverse_util import flatten_dict, unflatten_dict
 from flax.linen import partitioning as nn_partitioning
-from jax.experimental.shard_map import shard_map
-from jax.experimental.maps import thread_resources
 import einops
 
 import sentencepiece as spm
@@ -32,7 +31,6 @@ from ml_collections.config_dict import config_dict
 from mlxu import function_args_to_config, load_pickle, open_file
 
 from EasyLM.bpt import blockwise_ffn, blockwise_attn
-from EasyLM.flash_attn_utils import flash_attention_implementation
 from EasyLM.jax_utils import (
     with_sharding_constraint, get_jax_mesh, get_gradient_checkpoint_policy
 )
@@ -188,15 +186,14 @@ class LLaMAConfig(PretrainedConfig):
         embd_pdrop=0.0,
         attn_pdrop=0.0,
         tie_word_embeddings=False,
-        remat_block='nothing_saveable',
+        remat_block='',
         remat_attention='',
         remat_mlp='',
         scan_attention=False,
-        flash_attention=False,
         scan_mlp=False,
-        scan_query_chunk_size=512,
-        scan_key_chunk_size=512,
-        scan_mlp_chunk_size=512,
+        scan_query_chunk_size=1024,
+        scan_key_chunk_size=1024,
+        scan_mlp_chunk_size=1024,
         fcm_min_ratio=0.0,
         fcm_max_ratio=0.0,
         **kwargs,
@@ -217,7 +214,6 @@ class LLaMAConfig(PretrainedConfig):
         self.remat_attention = remat_attention
         self.remat_mlp = remat_mlp
         self.scan_attention = scan_attention
-        self.flash_attention = flash_attention
         self.scan_mlp = scan_mlp
         self.scan_query_chunk_size = scan_query_chunk_size
         self.scan_key_chunk_size = scan_key_chunk_size
@@ -434,13 +430,6 @@ class FlaxLLaMAAttention(nn.Module):
             dtype=self.dtype,
         )
 
-        self.jit_attn = flash_attention_implementation(
-            backend=jax.default_backend(),
-            causal=True,
-            softmax_scale=self.head_dim**-0.5,
-            block_size=512,
-        )
-
     def _split_heads(self, hidden_states):
         return hidden_states.reshape(hidden_states.shape[:2] + (self.num_heads, self.head_dim))
 
@@ -495,9 +484,9 @@ class FlaxLLaMAAttention(nn.Module):
         xk = with_sharding_constraint(xk, PS(("dp", "fsdp"), None, "mp"))
         xv = with_sharding_constraint(xv, PS(("dp", "fsdp"), None, "mp"))
 
-        xq = self._split_heads(xq) # B, seq_len, num_head, head_dim
-        xk = self._split_heads(xk) # B, seq_len, num_head, head_dim
-        xv = self._split_heads(xv) # B, seq_len, num_head, head_dim
+        xq = self._split_heads(xq)
+        xk = self._split_heads(xk)
+        xv = self._split_heads(xv)
 
         freqs_cis = jnp.take(self.freqs_cis, position_ids, axis=0)
 
@@ -537,43 +526,6 @@ class FlaxLLaMAAttention(nn.Module):
                 prevent_cse=True,
             )
             attn_output = with_sharding_constraint(attn_output, PS(("dp", "fsdp"), None, "mp", None))
-        elif self.config.flash_attention and not (self.has_variable("cache", "cached_key") or init_cache):
-            query_length, key_length = xq.shape[1], xk.shape[1]
-
-            batch_size = hidden_states.shape[0]
-
-            mesh = thread_resources.env.physical_mesh
-
-            batch_axis_names = mesh.axis_names[:-1] if mesh.axis_names else None
-            # We also assume that the last axis is for tensor-parallelism.
-            tensor_parallel_axis_name = mesh.axis_names[-1] if mesh.axis_names else None
-
-            partitioned_mha = shard_map(
-                self.jit_attn,
-                mesh=mesh,
-                in_specs=(
-                    # QKV [batch_size, seq_len, num_heads, per_head_dim].
-                    PS(batch_axis_names, None, tensor_parallel_axis_name, None),
-                    PS(batch_axis_names, None, tensor_parallel_axis_name, None),
-                    PS(batch_axis_names, None, tensor_parallel_axis_name, None),
-                    PS(None, None, None, None)
-                ),
-                # O [batch_size, seq_len, num_heads, per_head_dim].
-                out_specs=PS(batch_axis_names, None, tensor_parallel_axis_name, None),
-                # Disables a checking pass which jax can't apply when there's a triton | pallas
-                # call in the body.
-                check_rep=False,
-            )
-            attn_output = partitioned_mha(
-                xq,
-                xk,
-                xv,
-                None
-            )
-            attn_output = self._merge_heads(attn_output)
-            attn_output = self.wo(attn_output)
-            attn_output = self.resid_dropout(attn_output, deterministic=deterministic)
-            return (attn_output,)
         else:
             query_length, key_length = xq.shape[1], xk.shape[1]
 
@@ -776,7 +728,7 @@ class FlaxLLaMAPreTrainedModel(FlaxPreTrainedModel):
         module = self.module_class(config=config, dtype=dtype, **kwargs)
         super().__init__(config, module, input_shape=input_shape, seed=seed, dtype=dtype, _do_init=_do_init)
 
-    def init_weights(self, rng: jax.random.PRNGKey, input_shape: Tuple, params: dict = None) -> dict:
+    def init_weights(self, rng: jax.random.PRNGKey, input_shape: Tuple, params: FrozenDict = None) -> FrozenDict:
         # init input tensors
         input_ids = jnp.zeros(input_shape, dtype="i4")
         attention_mask = jnp.ones_like(input_ids)
@@ -802,12 +754,12 @@ class FlaxLLaMAPreTrainedModel(FlaxPreTrainedModel):
         random_params = module_init_outputs["params"]
 
         if params is not None:
-            random_params = flatten_dict(random_params)
-            params = flatten_dict(params)
+            random_params = flatten_dict(unfreeze(random_params))
+            params = flatten_dict(unfreeze(params))
             for missing_key in self._missing_keys:
                 params[missing_key] = random_params[missing_key]
             self._missing_keys = set()
-            return unflatten_dict(params)
+            return freeze(unflatten_dict(params))
         else:
             return random_params
 
@@ -892,11 +844,11 @@ class FlaxLLaMAPreTrainedModel(FlaxPreTrainedModel):
         # add updated cache to model output
         if past_key_values is not None and return_dict:
             outputs, past_key_values = outputs
-            outputs["past_key_values"] = past_key_values["cache"]
+            outputs["past_key_values"] = unfreeze(past_key_values["cache"])
             return outputs
         elif past_key_values is not None and not return_dict:
             outputs, past_key_values = outputs
-            outputs = outputs[:1] + (past_key_values["cache"],) + outputs[1:]
+            outputs = outputs[:1] + (unfreeze(past_key_values["cache"]),) + outputs[1:]
 
         return outputs
 
