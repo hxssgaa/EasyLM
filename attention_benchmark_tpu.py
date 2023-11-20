@@ -94,9 +94,8 @@ def _benchmark(
     # ref_bwd_time2 = _time_call(lambda: grad_fn2(q, k, v, bias)[0], 'ref_bwd2')
 
     # Get fwd & bwd timing information when softmax scaling applied before calling the kernel.
-    mha_impl = flash_attention(
-        "tpu", causal=causal, softmax_scale=softmax_scale, block_size=block_size
-    )
+    def mha_impl(q, k, v, bias):
+        return flash_attention(q, k, v, bias, causal=causal, softmax_scale=softmax_scale, block_size=block_size)
 
     flash_fwd_time = _time_call(lambda: mha_impl(q, k, v, bias), 'flash_fwd')
 
