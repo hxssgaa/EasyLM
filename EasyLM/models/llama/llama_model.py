@@ -494,9 +494,9 @@ class FlaxLLaMAAttention(nn.Module):
         xk = with_sharding_constraint(xk, PS(("dp", "fsdp"), None, "mp"))
         xv = with_sharding_constraint(xv, PS(("dp", "fsdp"), None, "mp"))
 
-        xq = self._split_heads(xq) # B, num_head, seq_len, head_dim
-        xk = self._split_heads(xk) # B, num_head, seq_len, head_dim
-        xv = self._split_heads(xv) # B, num_head, seq_len, head_dim
+        xq = self._split_heads(xq) # B, seq_len, num_head, head_dim
+        xk = self._split_heads(xk) # B, seq_len, num_head, head_dim
+        xv = self._split_heads(xv) # B, seq_len, num_head, head_dim
 
         freqs_cis = jnp.take(self.freqs_cis, position_ids, axis=0)
 
@@ -540,17 +540,6 @@ class FlaxLLaMAAttention(nn.Module):
             query_length, key_length = xq.shape[1], xk.shape[1]
 
             batch_size = hidden_states.shape[0]
-            # causal_mask = self.causal_mask[:, :, :query_length, :key_length]
-            # causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
-            # attention_mask = jnp.broadcast_to(jnp.expand_dims(attention_mask, axis=(-3, -2)), causal_mask.shape)
-            # attention_mask = combine_masks(attention_mask, fcm_mask)
-
-            # # transform boolean mask into float mask
-            # attention_bias = lax.select(
-            #     attention_mask > 0,
-            #     jnp.full(attention_mask.shape, 0.0).astype(self.dtype),
-            #     jnp.full(attention_mask.shape, jnp.finfo(self.dtype).min).astype(self.dtype),
-            # )
 
             mesh = thread_resources.env.physical_mesh
 
@@ -574,17 +563,12 @@ class FlaxLLaMAAttention(nn.Module):
                 # call in the body.
                 check_rep=False,
             )
-            xq = xq.reshape((xq.shape[0], xq.shape[2], xq.shape[1], xq.shape[3]))
-            xk = xk.reshape(xq.shape)
-            xv = xv.reshape(xq.shape)
-
             attn_output = partitioned_mha(
                 xq,
                 xk,
                 xv,
                 None
             )
-            attn_output = attn_output.reshape((attn_output.shape[0], attn_output.shape[2], attn_output.shape[1], attn_output.shape[3]))
             attn_output = self._merge_heads(attn_output)
             attn_output = self.wo(attn_output)
             attn_output = self.resid_dropout(attn_output, deterministic=deterministic)
