@@ -4,7 +4,7 @@ from typing import Callable
 import jax
 import jax.numpy as jnp
 
-from EasyLM.flash_attn_utils import flash_attention_implementation, mha_reference, mha_reference2
+from EasyLM.flash_attn_utils import flash_attention, mha_reference, mha_reference2
 
 _BENCHMARK_CONFIGS = {
     "1.2b": dict(
@@ -94,7 +94,7 @@ def _benchmark(
     # ref_bwd_time2 = _time_call(lambda: grad_fn2(q, k, v, bias)[0], 'ref_bwd2')
 
     # Get fwd & bwd timing information when softmax scaling applied before calling the kernel.
-    mha_impl = flash_attention_implementation(
+    mha_impl = flash_attention(
         "tpu", causal=causal, softmax_scale=softmax_scale, block_size=block_size
     )
 
