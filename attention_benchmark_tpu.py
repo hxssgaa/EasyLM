@@ -95,7 +95,7 @@ def _benchmark(
 
     # Get fwd & bwd timing information when softmax scaling applied before calling the kernel.
     def mha_impl(q, k, v, bias):
-        return flash_attention(q, k, v, bias, causal=causal, softmax_scale=softmax_scale, block_sizes=block_size)
+        return flash_attention(q, k, v, bias, causal=causal, softmax_scale=softmax_scale)
 
     flash_fwd_time = _time_call(lambda: mha_impl(q, k, v, bias), 'flash_fwd')
 
