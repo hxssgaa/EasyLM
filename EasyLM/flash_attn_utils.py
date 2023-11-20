@@ -129,6 +129,7 @@ def flash_attention_implementation(
         # shard_map-decorated function needs to be jitted.
         @jax.jit
         def jit_attn(query, key, value, bias):
+            import pdb; pdb.set_trace()
             query = jnp.reshape(query, (query.shape[0], query.shape[2], query.shape[1], query.shape[3]))
             key = jnp.reshape(key, query.shape)
             value = jnp.reshape(value, value.shape)
