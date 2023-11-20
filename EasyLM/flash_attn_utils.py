@@ -62,6 +62,7 @@ def mha_reference2(
     batch_size = q.shape[0]
     query_length, key_length = q.shape[1], k.shape[1]
     causal_mask = causal_mask[:, :, :query_length, :key_length]
+    import pdb; pdb.set_trace()
     causal_mask = jnp.broadcast_to(causal_mask, (batch_size,) + causal_mask.shape[1:])
     attention_bias = lax.select(
         causal_mask > 0,
@@ -70,7 +71,6 @@ def mha_reference2(
     )
     if bias is not None:
         attention_bias += bias
-    import pdb; pdb.set_trace()
     attn_weights = dot_product_attention_weights(
         q,
         k,
