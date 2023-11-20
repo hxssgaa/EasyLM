@@ -70,6 +70,7 @@ def mha_reference2(
     )
     if bias is not None:
         attention_bias += bias
+    import pdb; pdb.set_trace()
     attn_weights = dot_product_attention_weights(
         q,
         k,
