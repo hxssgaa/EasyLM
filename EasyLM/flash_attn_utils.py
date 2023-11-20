@@ -128,6 +128,13 @@ def flash_attention_implementation(
         # shard_map-decorated function needs to be jitted.
         @jax.jit
         def jit_attn(query, key, value, bias):
+            # Apply the softmax scale outside the kernel (see docstring for why).
+            if softmax_scale != 1.0:
+                query *= softmax_scale
+            # Switch num_heads and seq_len axes.
+            query = jnp.einsum("btnh->bnth", query)
+            key = jnp.einsum("bsnh->bnsh", key)
+            value = jnp.einsum("bsnh->bnsh", value)
             context = tpu_flash_attention(
                 query,
                 key,
@@ -137,7 +144,7 @@ def flash_attention_implementation(
                 sm_scale=softmax_scale,
                 block_sizes=block_sizes,
             )
-            return context
+            return jnp.einsum("bnth->btnh", context)
 
         return jit_attn
 
