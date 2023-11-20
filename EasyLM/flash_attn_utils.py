@@ -141,7 +141,7 @@ def flash_attention_implementation(
                 value,
                 ab=bias,
                 causal=causal,
-                sm_scale=softmax_scale,
+                sm_scale=1.0,
                 block_sizes=block_sizes,
             )
             return jnp.einsum("bnth->btnh", context)
