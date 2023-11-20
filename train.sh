@@ -5,10 +5,11 @@ export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
 WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.llama.llama_train \
     --total_steps=150000 \
     --mesh_dim='1,16,-1' \
-    --log_freq=50 \
+    --log_freq=100 \
     --save_model_freq=1000 \
     --load_llama_config='7b' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/llama2_tokenizer.model' \
+    --load_checkpoint='params::gs://hxtpu_bucket/llama2_7b_easylm' \
     --llama.max_sequence_length=4096 \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.type=huggingface \
@@ -25,7 +26,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.llama.llama_
     --optimizer.adamw_optimizer.lr=1e-4 \
     --optimizer.adamw_optimizer.end_lr=5e-5 \
     --optimizer.accumulate_gradient_steps=8 \
-    --optimizer.adamw_optimizer.lr_warmup_steps=10 \
+    --optimizer.adamw_optimizer.lr_warmup_steps=2000 \
     --optimizer.adamw_optimizer.lr_decay_steps=150000 \
     --optimizer.adamw_optimizer.bf16_momentum=True \
     --checkpointer.save_optimizer_state=False \
