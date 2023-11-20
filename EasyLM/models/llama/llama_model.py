@@ -551,13 +551,13 @@ class FlaxLLaMAAttention(nn.Module):
                 self.jit_attn,
                 mesh=mesh,
                 in_specs=(
-                    # QKV [batch_size, num_heads, seq_len, per_head_dim].
+                    # QKV [batch_size, seq_len, num_heads, per_head_dim].
                     PS(batch_axis_names, None, tensor_parallel_axis_name, None),
                     PS(batch_axis_names, None, tensor_parallel_axis_name, None),
                     PS(batch_axis_names, None, tensor_parallel_axis_name, None),
                     PS(None, None, None, None)
                 ),
-                # O [batch_size, num_heads, seq_len, per_head_dim].
+                # O [batch_size, seq_len, num_heads, per_head_dim].
                 out_specs=PS(batch_axis_names, None, tensor_parallel_axis_name, None),
                 # Disables a checking pass which jax can't apply when there's a triton | pallas
                 # call in the body.
