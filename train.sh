@@ -33,3 +33,4 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.llama.llama_
 
 #    --load_checkpoint='params::gs://hxtpu_bucket/llama2_7b_easylm' \
 #--llama.remat_attention='checkpoint_dots' \
+#256 batch size
