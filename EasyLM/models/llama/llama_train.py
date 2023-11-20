@@ -124,7 +124,6 @@ def main(argv):
             )
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
-        jax.debug.breakpoint()
         train_state = train_state.apply_gradients(grads=grads)
         metrics = dict(
             loss=loss,
