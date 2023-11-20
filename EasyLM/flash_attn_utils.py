@@ -41,8 +41,7 @@ def mha_reference(
     logits_dtype = logits.dtype
     logits = logits.astype(jnp.float32)
     probs = jax.nn.softmax(logits, axis=-1).astype(logits_dtype)
-    result = jnp.einsum("bnts,bsnh->btnh", probs, v)
-    return result
+    return jnp.einsum("bnts,bsnh->btnh", probs, v)
 
 
 @functools.partial(jax.jit, static_argnames=["causal", "softmax_scale"])
