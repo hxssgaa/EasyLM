@@ -62,7 +62,6 @@ def _benchmark(
     q = jax.random.normal(k1, (batch_size, seq_len, num_heads, per_head_dim), dtype=jnp.bfloat16)
     k = jax.random.normal(k2, (batch_size, seq_len, num_heads, per_head_dim), dtype=jnp.bfloat16)
     v = jax.random.normal(k3, (batch_size, seq_len, num_heads, per_head_dim), dtype=jnp.bfloat16)
-    attention_mask = jax.random.uniform(k4, (batch_size, seq_len), dtype=jnp.int32, minval=0, maxval=1)
     bias = None#jax.random.normal(k4, (batch_size, num_heads, seq_len, seq_len), dtype=jnp.bfloat16)
 
     softmax_scale = per_head_dim**-0.5
@@ -81,7 +80,7 @@ def _benchmark(
     ref_bwd_time = _time_call(lambda: grad_fn(q, k, v, bias)[0], 'ref_bwd')
 
     ref_fwd_time2 = _time_call(
-        lambda: mha_reference2(q, k, v, bias, attention_mask, causal=causal, softmax_scale=softmax_scale), 'ref_fwd2'
+        lambda: mha_reference2(q, k, v, bias, causal=causal, softmax_scale=softmax_scale), 'ref_fwd2'
     )
 
     grad_fn2 = jax.jit(
