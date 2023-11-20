@@ -9,13 +9,13 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.llama.llama_
     --save_model_freq=1000 \
     --load_llama_config='7b' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/llama2_tokenizer.model' \
-    --llama.max_sequence_length=2048 \
+    --llama.max_sequence_length=4096 \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.type=huggingface \
     --train_dataset.huggingface_dataset.path='mc4' \
     --train_dataset.huggingface_dataset.name='en' \
     --train_dataset.huggingface_dataset.streaming=True \
-    --train_dataset.huggingface_dataset.seq_length=2048 \
+    --train_dataset.huggingface_dataset.seq_length=4096 \
     --train_dataset.huggingface_dataset.batch_size=64 \
     --logger.output_dir='gs://hxtpu_bucket/llama2_mc4' \
     --logger.online=False \
