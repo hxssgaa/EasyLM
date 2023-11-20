@@ -141,7 +141,7 @@ def flash_attention_implementation(
                 sm_scale=softmax_scale,
                 block_sizes=block_sizes,
             )
-            context = jnp.reshape(context, (context.shape[0], context.shape[2], context.shape[1], context.shape[3]))
+            # context = jnp.reshape(context, (context.shape[0], context.shape[2], context.shape[1], context.shape[3]))
             return context
 
         return jit_attn
