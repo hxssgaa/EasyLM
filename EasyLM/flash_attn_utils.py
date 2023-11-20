@@ -131,8 +131,8 @@ def flash_attention_implementation(
         def jit_attn(query, key, value, bias):
             import pdb; pdb.set_trace()
             query = jnp.reshape(query, (query.shape[0], query.shape[2], query.shape[1], query.shape[3]))
-            key = jnp.reshape(key, query.shape)
-            value = jnp.reshape(value, value.shape)
+            key = jnp.reshape(key, (key.shape[0], key.shape[2], key.shape[1], key.shape[3]))
+            value = jnp.reshape(value, (value.shape[0], value.shape[2], value.shape[1], value.shape[3]))
             context = tpu_flash_attention(
                 query,
                 key,
