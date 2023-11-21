@@ -110,7 +110,22 @@ def flash_attention_implementation(
     Raises:
         NotImplementedError: If implementation for the backend is not available.
     """
-    if backend == "tpu":
+    if backend == 'gpu':
+        # Lazy import GPU flash-attention to avoid file-level dependency on jax-triton.
+        # pylint: disable-next=import-outside-toplevel
+        from EasyLM.gpu_attentions import (
+            flash_attention as gpu_flash_attention,
+        )
+
+        # shard_map-decorated function needs to be jitted.
+        @jax.jit
+        def jit_attn(query, key, value, bias):
+            return gpu_flash_attention(
+                query, key, value, bias=bias, causal=causal, softmax_scale=softmax_scale
+            )
+
+        return jit_attn
+    elif backend == "tpu":
         block_sizes = BlockSizes(
             block_q=block_size,
             block_k_major=block_size,
