@@ -5,7 +5,7 @@ export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
 WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.llama.llama_train \
     --total_steps=150000 \
     --mesh_dim='1,16,-1' \
-    --log_freq=100 \
+    --log_freq=200 \
     --save_model_freq=1000 \
     --load_llama_config='7b' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/llama2_tokenizer.model' \
@@ -18,14 +18,14 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.llama.llama_t
     --train_dataset.huggingface_dataset.streaming=True \
     --train_dataset.huggingface_dataset.seq_length=4096 \
     --train_dataset.huggingface_dataset.batch_size=256 \
-    --logger.output_dir='gs://hxtpu_bucket/llama2_mc4' \
+    --logger.output_dir='gs://hxtpu_bucket/llama2_redpajama' \
     --logger.online=True \
     --logger.prefix='EasyLM' \
     --logger.project="my_llama2_7b" \
     --dtype=bf16 \
     --optimizer.adamw_optimizer.lr=5e-5 \
     --optimizer.adamw_optimizer.end_lr=1e-5 \
-    --optimizer.accumulate_gradient_steps=1 \
+    --optimizer.accumulate_gradient_steps=8 \
     --optimizer.adamw_optimizer.lr_warmup_steps=200 \
     --optimizer.adamw_optimizer.lr_decay_steps=150000 \
     --optimizer.adamw_optimizer.bf16_momentum=True \
