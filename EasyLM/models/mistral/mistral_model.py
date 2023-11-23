@@ -396,8 +396,8 @@ class FlaxMistralAttention(nn.Module):
         batch, num_key_value_heads, slen, head_dim = hidden_states.shape
         if n_rep == 1:
             return hidden_states
-        hidden_states = jnp.broadcast_to(jnp.expand_dims(hidden_states, axis=2), (batch, num_key_value_heads, n_rep, slen, head_dim))
-        return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
+        hidden_states = jnp.broadcast_to(jnp.expand_dims(hidden_states, axis=3), (batch, slen, num_key_value_heads, n_rep, head_dim))
+        return hidden_states.reshape(batch, slen, num_key_value_heads * n_rep, head_dim)
 
     @nn.compact
     def _concatenate_to_cache(self, key, value, query, attention_mask):
