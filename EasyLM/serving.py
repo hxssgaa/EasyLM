@@ -400,7 +400,7 @@ class LMServer(object):
                 queue=False
             )
 
-        gradio_chatbot.queue(concurrency_count=1)
+        gradio_chatbot.queue()
         return gradio_chatbot
 
     def run(self):
