@@ -113,6 +113,21 @@ class StreamingCheckpointer(object):
                         continue
 
                 tensor = from_bytes(None, value)
+                # if key[0] == 'lm_head':
+                #     old_emb = tensor
+                #     new_size = 51016
+                #     old_size = old_emb.shape[1]
+                #     new_embeddings = np.random.normal(loc=0.0, scale=0.02, size=(tensor.shape[0], new_size))
+                #     new_embeddings[:, :old_size] = old_emb
+                #     tensor = new_embeddings
+                # elif key[1] == 'wte':
+                #     old_emb = tensor
+                #     new_size = 51016
+                #     old_size = old_emb.shape[0]
+                #     new_embeddings = np.random.normal(loc=0.0, scale=0.02, size=(new_size, tensor.shape[1]))
+                #     new_embeddings[:old_size] = old_emb
+                #     tensor = new_embeddings
+
                 if shard_fns is not None:
                     tensor = shard_fns[key](tensor)
                 flattend_train_state[key] = tensor

@@ -14,7 +14,7 @@ from tqdm import tqdm, trange
 import numpy as np
 
 from datasets import load_dataset
-
+from datasets import interleave_datasets
 
 class DatasetFactory(object):
     """ Datset builder class. """
@@ -152,6 +152,7 @@ class HuggingfaceDataset(object):
         config.always_start_with_bos = False
         config.batch_token_dtype = 'i4'
         config.throughput_average_window_size = 200
+        config.dataset_sample_prob = None
 
         if updates is not None:
             config.update(ConfigDict(updates).copy_and_resolve_references())
@@ -163,9 +164,28 @@ class HuggingfaceDataset(object):
         split = self.config.split if self.config.split != '' else None
         self._tokenizer = tokenizer
         self._text_processor = text_processor
-        self._dataset = load_dataset(
-            self.config.path, name, split=split, streaming=self.config.streaming
-        )
+        if ',' not in self.config.path:
+            self._dataset = load_dataset(
+                self.config.path, name, split=split, streaming=self.config.streaming
+            )
+        else:
+            paths = self.config.path.split(',')
+            if name:
+                name = name.split(',')
+            else:
+                name = [''] * len(paths)
+            if split:
+                split = split.split(',')
+            else:
+                split = [''] * len(split)
+            datasets = []
+            for i in range(len(paths)):
+                datasets.append(load_dataset(
+                    paths[i], name[i], split=split[i], streaming=self.config.streaming
+                ))
+            prob = list(map(float, self.config.dataset_sample_prob.split(','))) if self.config.dataset_sample_prob else None
+            self._dataset = interleave_datasets(datasets, probabilities=prob)
+            
 
     def __iter__(self):
         chunk_size = self.config.batch_size * self.config.seq_length
