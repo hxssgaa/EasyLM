@@ -393,7 +393,7 @@ class FlaxMistralAttention(nn.Module):
         return hidden_states.reshape(hidden_states.shape[:2] + (self.embed_dim,))
     
     def _repeat_kv(self, hidden_states: jnp.ndarray, n_rep: int):
-        batch, num_key_value_heads, slen, head_dim = hidden_states.shape
+        batch, slen, num_key_value_heads, head_dim = hidden_states.shape
         if n_rep == 1:
             return hidden_states
         hidden_states = jnp.broadcast_to(jnp.expand_dims(hidden_states, axis=3), (batch, slen, num_key_value_heads, n_rep, head_dim))
