@@ -549,8 +549,8 @@ class FlaxMistralAttention(nn.Module):
             if self.has_variable("cache", "cached_key") or init_cache:
                 xk, xv, attention_mask = self._concatenate_to_cache(xk, xv, xq, attention_mask)
 
-            xk = self.repeat_kv(xk, self.num_key_value_groups)
-            xv = self.repeat_kv(xv, self.num_key_value_groups)
+            xk = self._repeat_kv(xk, self.num_key_value_groups)
+            xv = self._repeat_kv(xv, self.num_key_value_groups)
 
             # transform boolean mask into float mask
             attention_bias = lax.select(
