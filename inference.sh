@@ -1,0 +1,11 @@
+python -m EasyLM.models.mistral.mistral_serve \
+    --load_mistral_config='7b' \
+    --load_checkpoint="params::/home/hxssgaa/mistral_easylm" \
+    --tokenizer.vocab_file='/home/hxssgaa/mistral_tokenizer.model' \
+    --mesh_dim='1,-1,1' \
+    --dtype='bf16' \
+    --input_length=1024 \
+    --seq_length=2048 \
+    --lm_server.batch_size=4 \
+    --lm_server.port=35009 \
+    --lm_server.pre_compile='all'
