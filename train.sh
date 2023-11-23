@@ -17,7 +17,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.llama.llama_t
     --train_dataset.huggingface_dataset.name='default' \
     --train_dataset.huggingface_dataset.streaming=True \
     --train_dataset.huggingface_dataset.seq_length=16384 \
-    --train_dataset.huggingface_dataset.batch_size=128 \
+    --train_dataset.huggingface_dataset.batch_size=64 \
     --logger.output_dir='gs://hxtpu_bucket/llama2_redpajama' \
     --logger.online=True \
     --logger.prefix='EasyLM' \
