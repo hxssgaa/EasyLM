@@ -36,7 +36,7 @@ def inverse_permute(params, w, is_q=False):
         transposed_w = reshaped_w.transpose(0, 2, 1, 3)
         inverted_w = transposed_w.reshape(dim, dim)
     else:
-        reshaped_w = w.reshape(n_heads, 2, dim // n_heads // 8, dim)
+        reshaped_w = w.reshape(8, 2, dim // 8 // 8, dim)
         transposed_w = reshaped_w.transpose(0, 2, 1, 3)
         inverted_w = transposed_w.reshape(dim//4, dim)
     return inverted_w
