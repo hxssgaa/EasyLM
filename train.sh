@@ -15,7 +15,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.mistral.mistr
     --train_dataset.type=huggingface \
     --train_dataset.huggingface_dataset.path='togethercomputer/RedPajama-Data-V2,mc4' \
     --train_dataset.huggingface_dataset.name='default,zh' \
-    --train_dataset.huggingface_dataset.split=',train' \
+    --train_dataset.huggingface_dataset.split='train,train' \
     --train_dataset.huggingface_dataset.streaming=True \
     --train_dataset.huggingface_dataset.seq_length=8192 \
     --train_dataset.huggingface_dataset.batch_size=256 \
