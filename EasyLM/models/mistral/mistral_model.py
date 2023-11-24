@@ -132,7 +132,7 @@ class MistralConfig(PretrainedConfig):
         tie_word_embeddings=False,
         remat_block='nothing_saveable',
         remat_attention='',
-        remat_mlp='',
+        remat_mlp='nothing_saveable',
         scan_attention=False,
         flash_attention=True,
         scan_mlp=False,
