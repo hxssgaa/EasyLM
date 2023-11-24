@@ -120,8 +120,10 @@ class TextProcessor(object):
             else:
                 subfields = field.split('+')
                 text = self.config.subfield_separator.join(
-                    [example[subfield] for subfield in subfields]
+                    [example[subfield] for subfield in subfields if subfield in example]
                 )
+                if not text:
+                    continue
                 if i == 0:
                     text = self.config.prepend_text + text
                 tokens = self.tokenizer.encode(text)
