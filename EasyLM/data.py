@@ -152,7 +152,7 @@ class HuggingfaceDataset(object):
         config.always_start_with_bos = False
         config.batch_token_dtype = 'i4'
         config.throughput_average_window_size = 200
-        config.dataset_sample_prob = None
+        config.dataset_sample_prob = ''
 
         if updates is not None:
             config.update(ConfigDict(updates).copy_and_resolve_references())
