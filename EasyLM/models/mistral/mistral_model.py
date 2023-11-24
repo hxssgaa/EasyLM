@@ -134,7 +134,7 @@ class MistralConfig(PretrainedConfig):
         remat_attention='',
         remat_mlp='',
         scan_attention=False,
-        flash_attention=False,
+        flash_attention=True,
         scan_mlp=False,
         scan_query_chunk_size=512,
         scan_key_chunk_size=512,
@@ -516,6 +516,9 @@ class FlaxMistralAttention(nn.Module):
                 # call in the body.
                 check_rep=False,
             )
+            xk = self._repeat_kv(xk, self.num_key_value_groups)
+            xv = self._repeat_kv(xv, self.num_key_value_groups)
+
             attn_output = partitioned_mha(
                 xq,
                 xk,
