@@ -183,7 +183,7 @@ class HuggingfaceDataset(object):
             datasets = []
             for i in range(len(paths)):
                 datasets.append(load_dataset(
-                    paths[i], name[i] if i < len(name) else '', split=split[i] if i < len(split) else '', streaming=self.config.streaming
+                    paths[i], name[i] if i < len(name) else None, split=split[i] if i < len(split) else None, streaming=self.config.streaming
                 ))
             prob = list(map(float, self.config.dataset_sample_prob.split(','))) if self.config.dataset_sample_prob else None
             self._dataset = interleave_datasets(datasets, probabilities=prob)
