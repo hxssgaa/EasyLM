@@ -7,7 +7,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.mistral.mistr
     --mesh_dim='1,16,-1' \
     --log_freq=200 \
     --save_model_freq=1000 \
-    --load_llama_config='7b' \
+    --load_mistral_config='7b' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/mistral_tokenizer.model' \
     --load_checkpoint='params::gs://hxtpu_bucket/mistral_easylm' \
     --llama.max_sequence_length=4096 \
