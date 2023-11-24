@@ -17,7 +17,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.mistral.mistr
     --train_dataset.huggingface_dataset.name='default,zh' \
     --train_dataset.huggingface_dataset.split=',train' \
     --train_dataset.huggingface_dataset.streaming=True \
-    --train_dataset.huggingface_dataset.seq_length=4096 \
+    --train_dataset.huggingface_dataset.seq_length=8192 \
     --train_dataset.huggingface_dataset.batch_size=256 \
     --train_dataset.huggingface_dataset.dataset_sample_prob='0.5,0.5' \
     --logger.output_dir='gs://hxtpu_bucket/mistral_outputs' \
