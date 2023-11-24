@@ -179,7 +179,7 @@ class HuggingfaceDataset(object):
             if split:
                 split = split.split(',')
             else:
-                split = [''] * len(split)
+                split = [''] * len(paths)
             datasets = []
             for i in range(len(paths)):
                 datasets.append(load_dataset(
