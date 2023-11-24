@@ -120,7 +120,7 @@ class TextProcessor(object):
             else:
                 subfields = field.split('+')
                 text = self.config.subfield_separator.join(
-                    [example[subfield] for subfield in subfields if subfield in example]
+                    [example[subfield] for subfield in subfields if subfield in example and example[subfield]]
                 )
                 if not text:
                     continue
