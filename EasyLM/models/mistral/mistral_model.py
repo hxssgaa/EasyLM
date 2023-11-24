@@ -135,7 +135,7 @@ class MistralConfig(PretrainedConfig):
         remat_mlp='',
         scan_attention=False,
         flash_attention=True,
-        scan_mlp=True,
+        scan_mlp=False,
         scan_query_chunk_size=512,
         scan_key_chunk_size=512,
         scan_mlp_chunk_size=512,

@@ -18,7 +18,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.mistral.mistr
     --train_dataset.huggingface_dataset.split='train,train' \
     --train_dataset.huggingface_dataset.streaming=True \
     --train_dataset.huggingface_dataset.seq_length=8192 \
-    --train_dataset.huggingface_dataset.batch_size=128 \
+    --train_dataset.huggingface_dataset.batch_size=64 \
     --train_dataset.huggingface_dataset.dataset_sample_prob='0.5,0.5' \
     --logger.output_dir='gs://hxtpu_bucket/mistral_outputs' \
     --logger.online=True \
@@ -27,7 +27,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.mistral.mistr
     --dtype=bf16 \
     --optimizer.adamw_optimizer.lr=5e-5 \
     --optimizer.adamw_optimizer.end_lr=1e-5 \
-    --optimizer.accumulate_gradient_steps=16 \
+    --optimizer.accumulate_gradient_steps=32 \
     --optimizer.adamw_optimizer.lr_warmup_steps=200 \
     --optimizer.adamw_optimizer.lr_decay_steps=150000 \
     --optimizer.adamw_optimizer.bf16_momentum=True \
