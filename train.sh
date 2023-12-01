@@ -10,7 +10,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.mistral.mistr
     --load_mistral_config='7b' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/mistral_tokenizer.model' \
     --load_checkpoint='params::gs://hxtpu_bucket/mistral_outputs/a0873174cf7f44af998e6c330c07de3d/streaming_params' \
-    --load_dataset_dict='gs://hxtpu_bucket/mistral_outputs/a0873174cf7f44af998e6c330c07de3d/dataset.pkl' \
+    --load_dataset_state='gs://hxtpu_bucket/mistral_outputs/a0873174cf7f44af998e6c330c07de3d/dataset.pkl' \
     --mistral.max_sequence_length=8192 \
     --train_dataset.text_processor.fields="raw_content,text" \
     --train_dataset.type=huggingface \
