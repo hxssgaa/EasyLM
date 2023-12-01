@@ -9,7 +9,8 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.mistral.mistr
     --save_model_freq=1000 \
     --load_mistral_config='7b' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/mistral_tokenizer.model' \
-    --load_checkpoint='params::gs://hxtpu_bucket/mistral_easylm' \
+    --load_checkpoint='params::gs://hxtpu_bucket/mistral_outputs/a0873174cf7f44af998e6c330c07de3d/streaming_params' \
+    --load_dataset_dict='gs://hxtpu_bucket/mistral_outputs/a0873174cf7f44af998e6c330c07de3d/dataset.pkl' \
     --mistral.max_sequence_length=8192 \
     --train_dataset.text_processor.fields="raw_content,text" \
     --train_dataset.type=huggingface \
@@ -31,7 +32,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.mistral.mistr
     --optimizer.adamw_optimizer.lr_warmup_steps=200 \
     --optimizer.adamw_optimizer.lr_decay_steps=150000 \
     --optimizer.adamw_optimizer.bf16_momentum=True \
-    --checkpointer.save_optimizer_state=False \
+    --checkpointer.save_optimizer_state=True \
     --jax_distributed.initialize_jax_distributed=True
 
 #    --load_checkpoint='params::gs://hxtpu_bucket/llama2_7b_easylm' \
