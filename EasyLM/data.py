@@ -397,7 +397,6 @@ class JsonDataset(object):
                         self.config.batch_size, -1
                     ),
                 }
-                import pdb; pdb.set_trace()
                 if self.config.always_start_with_bos:
                     batch['input_tokens'][:, 0] = self.tokenizer.bos_token_id
                 yield batch, metrics
