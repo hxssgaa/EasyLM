@@ -124,13 +124,13 @@ def main(argv):
             )
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
         (loss, accuracy), grads = grad_fn(train_state.params)
-        train_state = train_state.apply_gradients(grads=grads)
+        # train_state = train_state.apply_gradients(grads=grads)
         metrics = dict(
             loss=loss,
             accuracy=accuracy,
             learning_rate=optimizer_info['learning_rate_schedule'](train_state.step),
             gradient_norm=global_norm(grads),
-            param_norm=global_norm(train_state.params),
+            # param_norm=global_norm(train_state.params),
         )
         return train_state, rng_generator(), metrics
 
