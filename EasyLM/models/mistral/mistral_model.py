@@ -40,7 +40,7 @@ from EasyLM.jax_utils import (
 
 MISTRAL_STANDARD_CONFIGS = {
     '7b': {
-        'vocab_size': 32000,
+        'vocab_size': 32000, #54592
         'hidden_size': 4096,
         'intermediate_size': 14336,
         'num_hidden_layers': 32,
