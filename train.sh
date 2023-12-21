@@ -1,15 +1,16 @@
 export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
 
 # export LIBTPU_INIT_ARGS='--xla_jf_spmd_threshold_for_windowed_einsum_mib=0 --xla_tpu_spmd_threshold_for_allgather_cse=10000 --xla_tpu_spmd_rewrite_einsum_with_reshape=true --xla_enable_async_all_gather=true --xla_tpu_enable_latency_hiding_scheduler=true TPU_MEGACORE=MEGACORE_DENSE'
-
+    # --load_checkpoint='params::gs://hxtpu_bucket/mistral_sea_7b_easylm' \
+    # --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
 WANDB__SERVICE_WAIT=300 WANDB_MODE=online python3 -m EasyLM.models.mistral.mistral_train \
     --total_steps=150000 \
     --mesh_dim='1,16,-1' \
     --log_freq=1 \
     --save_model_freq=1000 \
     --load_mistral_config='7b' \
-    --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
-    --load_checkpoint='params::gs://hxtpu_bucket/mistral_sea_7b_easylm' \
+    --tokenizer.vocab_file='gs://hxtpu_bucket/mistral_tokenizer.model' \
+    --load_checkpoint='params::gs://hxtpu_bucket/mistral_easylm' \
     --mistral.max_sequence_length=8192 \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.type=json \
