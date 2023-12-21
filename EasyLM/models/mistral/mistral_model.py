@@ -113,7 +113,7 @@ class MistralConfig(PretrainedConfig):
 
     def __init__(
         self,
-        vocab_size=54592,
+        vocab_size=32000, #54592,
         hidden_size=4096,
         intermediate_size=14336,
         num_hidden_layers=32,
