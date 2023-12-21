@@ -130,7 +130,7 @@ def main(argv):
             accuracy=accuracy,
             learning_rate=optimizer_info['learning_rate_schedule'](train_state.step),
             gradient_norm=global_norm(grads),
-            # param_norm=global_norm(train_state.params),
+            param_norm=global_norm(train_state.params),
         )
         return train_state, rng_generator(), metrics
 
