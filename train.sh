@@ -8,10 +8,11 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --mesh_dim='1,16,-1' \
     --log_freq=256 \
     --save_model_freq=512 \
+    --save_milestone_freq=2048 \
     --load_mistral_config='7b' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
-    --load_dataset_state='gs://hxtpu_bucket/sea_mistral_7b_outputs/b6fd0187e0a844f682566d61229b7184/dataset.pkl' \
-    --load_checkpoint='trainstate_params::gs://hxtpu_bucket/sea_mistral_7b_outputs/b6fd0187e0a844f682566d61229b7184/streaming_train_state' \
+    --load_dataset_state='gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/dataset.pkl' \
+    --load_checkpoint='trainstate_params::gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/streaming_train_state' \
     --mistral.max_sequence_length=8192 \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.type=json \
