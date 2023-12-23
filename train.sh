@@ -4,8 +4,8 @@ export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
     # --load_checkpoint='params::gs://hxtpu_bucket/mistral_sea_7b_easylm' \
     # --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
 WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mistral_train \
-    --total_steps=150000 \
-    --mesh_dim='1,16,-1' \
+    --total_steps=128000 \
+    --mesh_dim='1,16,-1'\
     --log_freq=256 \
     --save_model_freq=512 \
     --save_milestone_freq=2048 \
