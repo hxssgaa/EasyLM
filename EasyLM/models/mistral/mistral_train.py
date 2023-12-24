@@ -223,7 +223,6 @@ def main(argv):
             del restored_params
 
         start_step = int(jax.device_get(train_state.step))
-        import pdb; pdb.set_trace()
 
         if FLAGS.save_model_freq > 0:
             save_checkpoint(train_state)
