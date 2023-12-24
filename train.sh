@@ -12,7 +12,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --load_mistral_config='7b' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
     --load_dataset_state='gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/dataset.pkl' \
-    --load_checkpoint='trainstate_params::gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/streaming_train_state' \
+    --load_checkpoint='trainstate::gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/streaming_train_state' \
     --mistral.max_sequence_length=8192 \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.type=json \
@@ -26,11 +26,11 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --logger.project="sea_mistral_7b" \
     --logger.experiment_id="mix_sea_mc" \
     --dtype=bf16 \
-    --optimizer.adamw_optimizer.lr=4.9e-5 \
+    --optimizer.adamw_optimizer.lr=5e-5 \
     --optimizer.adamw_optimizer.end_lr=1e-5 \
     --optimizer.adamw_optimizer.b2=0.999 \
     --optimizer.accumulate_gradient_steps=32 \
-    --optimizer.adamw_optimizer.lr_warmup_steps=512 \
+    --optimizer.adamw_optimizer.lr_warmup_steps=2048 \
     --optimizer.adamw_optimizer.lr_decay_steps=150000 \
     --optimizer.adamw_optimizer.bf16_momentum=True \
     --checkpointer.save_optimizer_state=True \
