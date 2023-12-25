@@ -22,11 +22,10 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --train_dataset.json_dataset.seq_length=8192 \
     --logger.output_dir='gs://hxtpu_bucket/sea_mistral_7b_outputs' \
     --logger.online=True \
-    --logger.prefix='EasyLM' \
     --logger.project="sea_mistral_7b" \
     --logger.experiment_id="mix_sea_mc" \
     --logger.prefix_to_id=True \
-    --logger.prefix="$1" \
+    --logger.prefix="EasyLM-$1" \
     --dtype=bf16 \
     --optimizer.adamw_optimizer.lr=5e-5 \
     --optimizer.adamw_optimizer.end_lr=1e-5 \
