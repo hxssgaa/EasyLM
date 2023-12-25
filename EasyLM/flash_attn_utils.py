@@ -5,8 +5,11 @@ import jax
 import jax.numpy as jnp
 from absl import logging
 from jax import lax
-from jax.experimental.pallas.ops.tpu.flash_attention import BlockSizes
-from EasyLM.tpu_attention import tpu_flash_attention
+try:
+    from jax.experimental.pallas.ops.tpu.flash_attention import BlockSizes
+    from EasyLM.tpu_attention import tpu_flash_attention
+except:
+    pass
 from flax.linen.attention import dot_product_attention_weights
 from flax.linen import combine_masks, make_causal_mask
 
@@ -195,7 +198,7 @@ def flash_attention(
     *,
     causal: bool = False,
     softmax_scale: float = 1.0,
-    block_sizes: Optional[BlockSizes] = None,
+    block_sizes = None,
 ):
     """Wraps JAX's TPU flash-attention, with reshapes and softmax-scaling outside kernel.
 
