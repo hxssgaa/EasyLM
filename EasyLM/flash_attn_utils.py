@@ -117,15 +117,16 @@ def flash_attention_implementation(
         # Lazy import GPU flash-attention to avoid file-level dependency on jax-triton.
         # pylint: disable-next=import-outside-toplevel
         from EasyLM.gpu_attentions import (
-            flash_attention as gpu_flash_attention,
+           flash_attention as gpu_flash_attention,
         )
 
         # shard_map-decorated function needs to be jitted.
         @jax.jit
         def jit_attn(query, key, value, bias):
-            return gpu_flash_attention(
-                query, key, value, bias=bias, causal=causal, softmax_scale=softmax_scale
+            x = gpu_flash_attention(
+               query, key, value, bias=bias, causal=causal, softmax_scale=softmax_scale
             )
+            return x
 
         return jit_attn
     elif backend == "tpu":

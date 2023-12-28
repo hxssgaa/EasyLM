@@ -110,7 +110,7 @@ def _benchmark(
 
 
 if __name__ == "__main__":
-    assert jax.default_backend() == "gpu", "Benchmarking requires a TPU backend."
+    assert jax.default_backend() == "gpu", "Benchmarking requires a GPU backend."
     device_kind = jax.devices()[0].device_kind
     for name, cfg in _BENCHMARK_CONFIGS.items():
         print(f"Benchmarking attention representative of {name} model layer on {device_kind}.")

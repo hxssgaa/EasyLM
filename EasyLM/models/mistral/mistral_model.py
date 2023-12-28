@@ -54,11 +54,11 @@ MISTRAL_STANDARD_CONFIGS = {
     },
     'debug': { # A small model for debugging
         'vocab_size': 32000,
-        'hidden_size': 128,
-        'intermediate_size': 256,
-        'num_hidden_layers': 2,
-        'num_attention_heads': 4,
-        'max_sequence_length': 2048,
+        'hidden_size': 1024,
+        'intermediate_size': 8192,
+        'num_hidden_layers': 24,
+        'num_attention_heads': 32,
+        'max_sequence_length': 8192,
         'initializer_range': 0.02,
         'rms_norm_eps': 1e-6,
         'use_cache': True,
@@ -113,7 +113,7 @@ class MistralConfig(PretrainedConfig):
 
     def __init__(
         self,
-        vocab_size=54592, #54592,
+        vocab_size=32000, #54592,
         hidden_size=4096,
         intermediate_size=14336,
         num_hidden_layers=32,
