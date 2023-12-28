@@ -231,12 +231,13 @@ def main(argv):
 
         step_counter = trange(start_step, FLAGS.total_steps, ncols=0)
 
-        train_metrci
+        train_metric_list = []
 
         for step, (batch, dataset_metrics) in zip(step_counter, dataset):
             train_state, sharded_rng, metrics = sharded_train_step(
                 train_state, sharded_rng, batch
             )
+            train_metric_list.append(metrics)
 
             if step % FLAGS.log_freq == 0:
                 if FLAGS.eval_steps > 0:
@@ -248,13 +249,14 @@ def main(argv):
                         )
                         eval_metric_list.append(eval_metrics)
                     metrics.update(average_metrics(eval_metric_list))
-
+                metrics.update(average_metrics(train_metric_list))
                 log_metrics = {"step": step}
                 log_metrics.update(metrics)
                 log_metrics.update(dataset_metrics)
                 log_metrics = jax.device_get(log_metrics)
                 logger.log(log_metrics)
                 tqdm.write("\n" + pprint.pformat(log_metrics) + "\n")
+                train_metric_list = []
 
             if FLAGS.save_milestone_freq > 0 and (step + 1) % FLAGS.save_milestone_freq == 0:
                 save_checkpoint(train_state, milestone=True)
