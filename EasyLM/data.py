@@ -426,8 +426,8 @@ class JsonDataset(object):
 
                 target_langs_buffer = tag_buffer[1:chunk_size + 1]
                 for i in range(_metadata.tag_index.value):
-                    if ('dataset_%s_tokens' % _metadata.get_tag_index_map()[i]) not in self.total_tag_tokens:
-                        self.total_tag_tokens['dataset_%s_tokens' % _metadata.get_tag_index_map()[i]] = 0
+                    if ('dataset_%s_tokens' % _metadata.get_reverse_tag_index_map()[i]) not in self.total_tag_tokens:
+                        self.total_tag_tokens['dataset_%s_tokens' % _metadata.get_reverse_tag_index_map()[i]] = 0
                     cnt = 0
                     for j in target_langs_buffer:
                         if j == i:
