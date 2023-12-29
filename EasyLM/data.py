@@ -432,7 +432,7 @@ class JsonDataset(object):
                     for j in target_langs_buffer:
                         if j == i:
                             cnt += 1
-                    self.total_tag_tokens['dataset_%d_tokens' % i] += cnt
+                    self.total_tag_tokens['dataset_%s_tokens' % _metadata.get_reverse_tag_index_map()[i]] += cnt
 
                 step_times.append(time.time() - last_time)
                 last_time = time.time()
