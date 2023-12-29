@@ -250,11 +250,14 @@ def mse_loss(val, target, valid=None):
     return loss
 
 
-def cross_entropy_loss_and_accuracy(logits, tokens, valid=None):
+def cross_entropy_loss_and_accuracy(logits, tokens, valid=None, target_tags=None, max_tag_id=1):
     if valid is None:
         valid = jnp.ones(tokens.shape[:2])
     valid = valid.astype(jnp.float32)
+    n_tags = max_tag_id + 1
+    tags_valid = [jnp.where(target_tags == i, valid, jnp.array(0)) for i in range(n_tags)]
     valid_text_length = jnp.maximum(jnp.sum(valid, axis=-1), 1e-10)
+    tags_valid_text_length = [jnp.maximum(jnp.sum(tags_valid[i], axis=-1), 1e-10) for i in range(n_tags)]
     logits = logits.astype(jnp.float32) # for numerical stability
     token_log_prob = jnp.squeeze(
         jnp.take_along_axis(
@@ -265,14 +268,16 @@ def cross_entropy_loss_and_accuracy(logits, tokens, valid=None):
         -1,
     )
     token_log_prob = jnp.where(valid > 0.0, token_log_prob, jnp.array(0.0))
+    tags_token_log_prob = [jnp.where(target_tags == i, token_log_prob, jnp.array(0.0)) for i in range(n_tags)]
     loss = -jnp.mean(jnp.sum(token_log_prob, axis=-1) / valid_text_length)
+    tags_loss = [-jnp.mean(jnp.sum(tags_token_log_prob[i], axis=-1) / tags_valid_text_length[i]) for i in range(n_tags)]
     correct = jnp.where(
         valid > 0.0,
         jnp.argmax(logits, axis=-1) == tokens,
         jnp.array(False)
     )
     accuracy = jnp.mean(jnp.sum(correct, axis=-1) / valid_text_length)
-    return loss, accuracy
+    return loss, (accuracy, tags_loss)
 
 
 def global_norm(tree):

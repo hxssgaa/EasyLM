@@ -4,7 +4,7 @@ import time
 from functools import partial
 import json
 import base64
-from multiprocessing import Pool
+from multiprocessing import Pool, Value, Lock, Manager
 
 import h5py
 import mlxu
@@ -12,6 +12,7 @@ from ml_collections.config_dict import config_dict
 from ml_collections import ConfigDict
 from tqdm import tqdm, trange
 import numpy as np
+import threading
 
 from datasets import load_dataset
 from datasets import interleave_datasets
@@ -46,6 +47,41 @@ class DatasetFactory(object):
 
     def __init__(self):
         raise ValueError('DatasetFactory is a static class and should not be instantiated.')
+    
+class TextProcessorMetadata:
+    def __init__(self) -> None:
+        self.manager = Manager()
+        self.tag_index_map = self.manager.dict()
+        self.tag_index_reverse_map = self.manager.dict()
+        self.tag_index = Value('i', 0)
+        self._lock = Lock()
+
+    def get_tag_index_map(self):
+        with self._lock:
+            return self.tag_index_map
+        
+    def update_tag_index_map(self, new):
+        with self._lock:
+            self.tag_index_map.update(new)
+
+    def get_tag_index(self):
+        with self._lock:
+            return self.tag_index.value
+        
+    def set_tag_index(self, new):
+        with self._lock:
+            self.tag_index.value = new
+
+    def get_reverse_tag_index_map(self):
+        with self._lock:
+            return self.tag_index_reverse_map
+        
+    def update_reverse_tag_index_map(self, new):
+        with self._lock:
+            self.tag_index_reverse_map.update(new)
+        
+
+_metadata = TextProcessorMetadata()
 
 
 class TextProcessor(object):
@@ -56,6 +92,7 @@ class TextProcessor(object):
         config = ConfigDict()
         config.fields_from_example = ''
         config.fields = ''
+        config.tag = ''
         config.subfield_separator = ' '
         config.add_bos_token = True
         config.add_eos_token = True
@@ -77,6 +114,18 @@ class TextProcessor(object):
             example, *aux = example
         else:
             aux = tuple()
+
+        tag = example.get(self.config.tag, 'en')
+        if tag not in _metadata.get_tag_index_map():
+            print('tag: %s has index: %d' % (tag, _metadata.get_tag_index()))
+            _metadata.update_tag_index_map({tag: _metadata.get_tag_index()})
+            _metadata.update_reverse_tag_index_map({_metadata.get_tag_index(): tag})
+            tag_index = _metadata.get_tag_index()
+            _metadata.set_tag_index(tag_index + 1)
+        else:
+            tag_index = _metadata.get_tag_index_map()[tag]
+            # print('tag: %s has index: %d, debug:%s, %d' % (tag, tag_index, str(_metadata.get_tag_index_map()), _metadata.get_tag_index()))
+
         token_buffer = []
         loss_mask_buffer = []
 
@@ -134,7 +183,7 @@ class TextProcessor(object):
             token_buffer.append(self.tokenizer.eos_token_id)
             loss_mask_buffer.append(1.0)
 
-        return token_buffer, loss_mask_buffer, *aux
+        return token_buffer, loss_mask_buffer, [tag_index] * len(token_buffer), *aux
 
 
 class HuggingfaceDataset(object):
@@ -296,6 +345,7 @@ class JsonDataset(object):
         self._index = self.config.example_index_at_start
         self._file_loc = self.config.start_seek_loc
         self._total_tokens = self.config.tokens_count_at_start
+        self.total_tag_tokens = dict()
 
     def parse_json(self, line):
         if not line or line == '\n':
@@ -362,15 +412,28 @@ class JsonDataset(object):
         chunk_size = self.config.batch_size * self.config.seq_length
         token_buffer = []
         loss_mask_buffer = []
+        tag_buffer = []
         last_time = 0.0
         step_times = []
         start_time = time.time()
         start_tokens = self._total_tokens
-        for tokens, loss_masks, loc, index in self.parallel_example_iterator():
+        for tokens, loss_masks, langs, loc, index in self.parallel_example_iterator():
             token_buffer.extend(tokens)
             loss_mask_buffer.extend(loss_masks)
+            tag_buffer.extend(langs)
             while len(token_buffer) > chunk_size + 1:
                 self._total_tokens += chunk_size
+
+                target_langs_buffer = tag_buffer[1:chunk_size + 1]
+                for i in range(_metadata.tag_index.value):
+                    if ('dataset_%s_tokens' % _metadata.get_tag_index_map()[i]) not in self.total_tag_tokens:
+                        self.total_tag_tokens['dataset_%s_tokens' % _metadata.get_tag_index_map()[i]] = 0
+                    cnt = 0
+                    for j in target_langs_buffer:
+                        if j == i:
+                            cnt += 1
+                    self.total_tag_tokens['dataset_%d_tokens' % i] += cnt
+
                 step_times.append(time.time() - last_time)
                 last_time = time.time()
                 if len(step_times) > self.config.throughput_average_window_size:
@@ -386,11 +449,15 @@ class JsonDataset(object):
                     'dataset_accumulated_tps': accumulated_throughput,
                     'dataset_average_tps': average_throughput,
                 }
+                metrics.update(self.total_tag_tokens)
                 batch = {
                     'input_tokens': np.array(token_buffer[:chunk_size], dtype=np.int32).reshape(
                         self.config.batch_size, -1
                     ),
                     'target_tokens': np.array(token_buffer[1:chunk_size + 1], dtype=np.int32).reshape(
+                        self.config.batch_size, -1
+                    ),
+                    'target_tags': np.array(tag_buffer[1:chunk_size + 1], dtype=np.int32).reshape(
                         self.config.batch_size, -1
                     ),
                     'loss_masks': np.array(loss_mask_buffer[1:chunk_size + 1], dtype=np.float32).reshape(
@@ -402,6 +469,7 @@ class JsonDataset(object):
                 yield batch, metrics
                 token_buffer = token_buffer[chunk_size:]
                 loss_mask_buffer = loss_mask_buffer[chunk_size:]
+                tag_buffer = tag_buffer[chunk_size:]
 
     def get_state_dict(self):
         return dict(
@@ -409,6 +477,7 @@ class JsonDataset(object):
             index=self._index,
             file_loc=self._file_loc,
             total_tokens=self._total_tokens,
+            total_tag_tokens=self.total_tag_tokens
         )
 
     def load_state_dict(self, state_dict):
@@ -417,6 +486,7 @@ class JsonDataset(object):
         self._index = state_dict.get('index', self.config.example_index_at_start)
         self._file_loc = state_dict.get('file_loc', self.config.start_seek_loc)
         self._total_tokens = state_dict.get('total_tokens', self.config.tokens_count_at_start)
+        self.total_tag_tokens = state_dict.get('total_tag_tokens', dict())
 
     @property
     def seq_length(self):

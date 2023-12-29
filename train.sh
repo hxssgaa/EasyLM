@@ -15,6 +15,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --load_checkpoint='trainstate::gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/streaming_train_state' \
     --mistral.max_sequence_length=8192 \
     --train_dataset.text_processor.fields="text" \
+    --train_dataset.text_processor.tag="language" \
     --train_dataset.type=json \
     --train_dataset.json_dataset.path='gs://hxtpu_bucket/sampled_seamc.jsonl' \
     --train_dataset.json_dataset.batch_size=64 \

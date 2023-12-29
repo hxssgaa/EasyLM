@@ -11,7 +11,7 @@ from jax.experimental.pjit import pjit
 from jax.sharding import PartitionSpec as PS
 from flax.training.train_state import TrainState
 
-from EasyLM.data import DatasetFactory
+from EasyLM.data import DatasetFactory, _metadata
 from EasyLM.checkpoint import StreamingCheckpointer
 from EasyLM.optimizers import OptimizerFactory
 from EasyLM.jax_utils import (
@@ -120,10 +120,10 @@ def main(argv):
                 rngs=rng_generator(mistral_config.rng_keys()),
             ).logits
             return cross_entropy_loss_and_accuracy(
-                logits, batch['target_tokens'], batch['loss_masks']
+                logits, batch['target_tokens'], batch['loss_masks'], batch['target_tags'], (_metadata.get_tag_index() - 1)
             )
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
-        (loss, accuracy), grads = grad_fn(train_state.params)
+        (loss, (accuracy, tags_loss)), grads = grad_fn(train_state.params)
         train_state = train_state.apply_gradients(grads=grads)
         metrics = dict(
             loss=loss,
@@ -132,6 +132,8 @@ def main(argv):
             gradient_norm=global_norm(grads),
             param_norm=global_norm(train_state.params),
         )
+        for i, l in enumerate(tags_loss):
+            metrics['loss_%s' % _metadata.get_reverse_tag_index_map()[i]] = l
         return train_state, rng_generator(), metrics
 
     def eval_step(train_state, rng, batch):
@@ -141,13 +143,15 @@ def main(argv):
             train_state.params, batch['input_tokens'], deterministic=True,
             rngs=rng_generator(mistral_config.rng_keys()),
         ).logits
-        loss, accuracy = cross_entropy_loss_and_accuracy(
-            logits, batch['target_tokens'], batch['loss_masks']
+        loss, (accuracy, tags_loss) = cross_entropy_loss_and_accuracy(
+            logits, batch['target_tokens'], batch['loss_masks'], batch['target_tags'], (_metadata.get_tag_index() - 1)
         )
         metrics = dict(
             eval_loss=loss,
             eval_accuracy=accuracy,
         )
+        for i, l in enumerate(tags_loss):
+            metrics['loss_%s' % dataset._text_processor.tag_index_reverse_map[i]] = l
         return rng_generator(), metrics
 
     train_state_shapes = jax.eval_shape(init_fn, next_rng())

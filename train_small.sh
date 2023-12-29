@@ -12,8 +12,9 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --tokenizer.vocab_file='./inputs/mistral_tokenizer.model' \
     --mistral.max_sequence_length=8192 \
     --train_dataset.text_processor.fields="text" \
+    --train_dataset.text_processor.tag="language" \
     --train_dataset.type=json \
-    --train_dataset.json_dataset.path='/home/hxssgaa/Developer/seallama2/en_out.jsonl' \
+    --train_dataset.json_dataset.path='/home/hxssgaa/Developer/tpuhandle/EasyLM/inputs/mix_out.jsonl' \
     --train_dataset.json_dataset.batch_size=2 \
     --train_dataset.json_dataset.tokenizer_processes=16 \
     --train_dataset.json_dataset.seq_length=8192 \
