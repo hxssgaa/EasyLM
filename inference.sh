@@ -1,7 +1,7 @@
 python -m EasyLM.models.mistral.mistral_serve \
     --load_mistral_config='7b' \
-    --load_checkpoint="params::/home/hxssgaa/mistral_easylm" \
-    --tokenizer.vocab_file='/home/hxssgaa/mistral_tokenizer.model' \
+    --load_checkpoint="trainstate_params::gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/streaming_train_state" \
+    --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
     --mesh_dim='1,-1,1' \
     --dtype='bf16' \
     --input_length=1024 \
