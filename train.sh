@@ -8,7 +8,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --mesh_dim='1,16,-1'\
     --log_freq=256 \
     --save_model_freq=512 \
-    --save_milestone_freq=20480 \
+    --save_milestone_freq=10240 \
     --load_mistral_config='7b' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
     --load_dataset_state='gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/dataset.pkl' \
