@@ -107,7 +107,7 @@ def write_model(loaded, model_path, model_size):
         if not is_q:
             return w.view(n_heads, dim // n_heads // 2, 2, dim).transpose(1, 2).reshape(dim, dim)
         else:
-            return w.view(8, dim // 8 // 8, 2, dim).transpose(1, 2).reshape(dim, dim//4)
+            return w.view(8, dim // 8 // 8, 2, dim).transpose(1, 2).reshape(dim//4, dim)
 
 
     param_count = 0
