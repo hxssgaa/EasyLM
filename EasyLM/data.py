@@ -24,7 +24,8 @@ class DatasetFactory(object):
     def get_default_config(updates=None):
         config = ConfigDict()
         config.type = 'huggingface'
-        config.text_processor = TextProcessor.get_default_config()
+        config.text_processor_class = 'TextProcessor'
+        config.text_processor = globals()[config.text_processor_class].get_default_config()
         config.huggingface_dataset = HuggingfaceDataset.get_default_config()
         config.json_dataset = JsonDataset.get_default_config()
 
@@ -35,7 +36,7 @@ class DatasetFactory(object):
     @classmethod
     def load_dataset(cls, config, tokenizer, **kwargs):
         config = cls.get_default_config(config)
-        text_processor = TextProcessor(config.text_processor, tokenizer)
+        text_processor = globals()[config.text_processor_class](config.text_processor, tokenizer)
         if config.type == 'huggingface':
             return HuggingfaceDataset(
                 config.huggingface_dataset, tokenizer, text_processor, **kwargs
@@ -182,6 +183,70 @@ class TextProcessor(object):
         if self.config.add_eos_token:
             token_buffer.append(self.tokenizer.eos_token_id)
             loss_mask_buffer.append(1.0)
+
+        return token_buffer, loss_mask_buffer, [tag_index] * len(token_buffer), *aux
+    
+
+class InstructTextProcessor(object):
+    """ processor that converts a instruction text format into tokens. """
+
+    @staticmethod
+    def get_default_config(updates=None):
+        config = ConfigDict()
+        config.conversation_key = 'conversation'
+        config.tag = ''
+        config.subfield_separator = ' '
+        config.add_bos_token = True
+        config.add_eos_token = True
+        config.prepend_text = ''
+        config.base64_token_dtype = 'i4'
+        if updates is not None:
+            config.update(ConfigDict(updates).copy_and_resolve_references())
+        return config
+
+    def __init__(self, config, tokenizer):
+        self.config = self.get_default_config(config)
+        assert self.config.conversation_key != '', (
+            'conversation_key must be specified.'
+        )
+        self.tokenizer = tokenizer
+        self.inst_begin_tokens = tokenizer.encode('[INST]', add_special_tokens=False)
+        self.inst_end_tokens = tokenizer.encode('[/INST]', add_special_tokens=False)
+
+    def __call__(self, example, has_aux=False):
+        if has_aux:
+            example, *aux = example
+        else:
+            aux = tuple()
+
+        tag = example.get(self.config.tag, 'en')
+        if tag not in _metadata.get_tag_index_map():
+            print('tag: %s has index: %d' % (tag, _metadata.get_tag_index()))
+            _metadata.update_tag_index_map({tag: _metadata.get_tag_index()})
+            _metadata.update_reverse_tag_index_map({_metadata.get_tag_index(): tag})
+            tag_index = _metadata.get_tag_index()
+            _metadata.set_tag_index(tag_index + 1)
+        else:
+            tag_index = _metadata.get_tag_index_map()[tag]
+            # print('tag: %s has index: %d, debug:%s, %d' % (tag, tag_index, str(_metadata.get_tag_index_map()), _metadata.get_tag_index()))
+
+        token_buffer = [self.tokenizer.bos_token_id]
+        loss_mask_buffer = [0]
+
+        conversations = example[self.config.conversation_key]
+
+        for conv in conversations:
+            human = conv['human'].strip()
+            assistant = conv['assistant'].strip()
+
+            human_tokens = self.tokenizer.encode(human, add_special_tokens=False)
+            assistant_tokens = self.tokenizer.encode(assistant, add_special_tokens=False)
+
+            input_tokens = self.inst_begin_tokens + human_tokens + self.inst_end_tokens
+            output_tokens = assistant_tokens + [self.tokenizer.eos_token_id]
+
+            token_buffer += input_tokens + output_tokens
+            loss_mask_buffer += [0] * len(input_tokens) + [1] * len(output_tokens)
 
         return token_buffer, loss_mask_buffer, [tag_index] * len(token_buffer), *aux
 
@@ -332,6 +397,7 @@ class JsonDataset(object):
         config.tokenizer_parallel_chunk_size = 32
         config.tokenizer_parallel_batch_size = 1024
         config.throughput_average_window_size = 200
+        config.enable_padding = False
 
         if updates is not None:
             config.update(ConfigDict(updates).copy_and_resolve_references())
@@ -417,8 +483,20 @@ class JsonDataset(object):
         step_times = []
         start_time = time.time()
         start_tokens = self._total_tokens
+        row_token_buffer = []
         for tokens, loss_masks, langs, loc, index in self.parallel_example_iterator():
+            if self.config.enable_padding and len(tokens) + len(row_token_buffer) > self.config.seq_length:
+                n_remain = self.config.seq_length - len(row_token_buffer)
+                if n_remain > 0:
+                    token_buffer.extend([self.tokenizer.eos_token_id] * n_remain)
+                    loss_mask_buffer.extend([0] * n_remain)
+                    # TODO: Deal with this tag problem for padding.
+                    tag_buffer.extend([0] * n_remain)
+                row_token_buffer = []
+
             token_buffer.extend(tokens)
+            if self.config.enable_padding:
+                row_token_buffer.extend(tokens)
             loss_mask_buffer.extend(loss_masks)
             tag_buffer.extend(langs)
             while len(token_buffer) > chunk_size + 1:
@@ -470,6 +548,8 @@ class JsonDataset(object):
                 token_buffer = token_buffer[chunk_size:]
                 loss_mask_buffer = loss_mask_buffer[chunk_size:]
                 tag_buffer = tag_buffer[chunk_size:]
+                if self.config.enable_padding:
+                    row_token_buffer = token_buffer.copy()
 
     def get_state_dict(self):
         return dict(
