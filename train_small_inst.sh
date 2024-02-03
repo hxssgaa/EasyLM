@@ -8,9 +8,8 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --mesh_dim='1,1,1'\
     --log_freq=1 \
     --save_model_freq=2048 \
-    --load_mistral_config='debug' \
+    --load_mistral_config='debug_lora' \
     --tokenizer.vocab_file='./inputs/mistral_tokenizer.model' \
-    --mistral.max_sequence_length=8192 \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.text_processor.tag="language" \
     --train_dataset.type=json \
@@ -28,10 +27,11 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --logger.prefix="EasyLM" \
     --dtype=bf16 \
     --optimizer.adamw_optimizer.lr=5e-4 \
+    --optimizer.adamw_optimizer.enable_lora=True \
     --optimizer.adamw_optimizer.end_lr=5e-5 \
     --optimizer.adamw_optimizer.b2=0.999 \
     --optimizer.accumulate_gradient_steps=1 \
-    --optimizer.adamw_optimizer.lr_warmup_steps=2048 \
+    --optimizer.adamw_optimizer.lr_warmup_steps=0 \
     --optimizer.adamw_optimizer.lr_decay_steps=150000 \
     --optimizer.adamw_optimizer.bf16_momentum=True \
     --checkpointer.save_optimizer_state=False

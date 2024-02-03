@@ -36,6 +36,8 @@ from EasyLM.flash_attn_utils import flash_attention_implementation
 from EasyLM.jax_utils import (
     with_sharding_constraint, get_jax_mesh, get_gradient_checkpoint_policy
 )
+from flax.linen.dtypes import promote_dtype
+from flax.linen.module import compact
 
 
 MISTRAL_STANDARD_CONFIGS = {
@@ -51,6 +53,21 @@ MISTRAL_STANDARD_CONFIGS = {
         'rms_norm_eps': 1e-5,
         'use_cache': True,
         'tie_word_embeddings': False,
+    },
+    'debug_lora': { # A small model for debugging
+        'vocab_size': 32000,
+        'hidden_size': 1024,
+        'intermediate_size': 8192,
+        'num_hidden_layers': 24,
+        'num_attention_heads': 32,
+        'max_sequence_length': 8192,
+        'initializer_range': 0.02,
+        'rms_norm_eps': 1e-6,
+        'use_cache': True,
+        'tie_word_embeddings': False,
+        'enable_lora': True,
+        'lora_rank': 64,
+        'lora_alpha': 128,
     },
     'debug': { # A small model for debugging
         'vocab_size': 32000,
@@ -135,6 +152,9 @@ class MistralConfig(PretrainedConfig):
         remat_mlp='',
         scan_attention=False,
         flash_attention=True,
+        enable_lora=False,
+        lora_rank=8,
+        lora_alpha=16,
         scan_mlp=False,
         scan_query_chunk_size=512,
         scan_key_chunk_size=512,
@@ -161,6 +181,9 @@ class MistralConfig(PretrainedConfig):
         self.remat_mlp = remat_mlp
         self.scan_attention = scan_attention
         self.flash_attention = flash_attention
+        self.enable_lora = enable_lora
+        self.lora_rank = lora_rank
+        self.lora_alpha = lora_alpha
         self.scan_mlp = scan_mlp
         self.scan_query_chunk_size = scan_query_chunk_size
         self.scan_key_chunk_size = scan_key_chunk_size
@@ -321,6 +344,47 @@ def apply_rotary_emb(
 
     return xq_out.astype(dtype), xk_out.astype(dtype)
 
+PRNGKey = Any
+Shape = Tuple[int, ...]
+Dtype = Any  # this could be a real type?
+Array = Any
+PrecisionLike = Union[None, str, lax.Precision, Tuple[str, str],
+                      Tuple[lax.Precision, lax.Precision]]
+
+class LoRADense(nn.Dense):
+  """A LoRA based linear transformation applied over the last dimension of the input."""
+  lora_rank: int = 8
+  lora_alpha: int = 16
+  scaling = lora_alpha / lora_rank
+
+  @compact
+  def __call__(self, inputs: Array) -> Array:
+    """Applies a linear transformation to the inputs along the last dimension.
+
+    Args:
+      inputs: The nd-array to be transformed.
+
+    Returns:
+      The transformed input.
+    """
+    output = super().__call__(inputs)
+
+    input_feature = jnp.shape(inputs)[-1]
+    output_feature = self.features
+    lora_a = self.param('lora_A',
+                        self.kernel_init,
+                        (self.lora_rank, input_feature),
+                        self.param_dtype)
+    
+    lora_b = self.param('lora_B',
+                        self.bias_init,
+                        (output_feature, self.lora_rank),
+                        self.param_dtype)
+    
+    output, lora_a, lora_b = promote_dtype(output, lora_a, lora_b, dtype=self.dtype)
+    y = output + inputs @ lora_a.T @ lora_b.T * self.scaling
+    return y
+
 
 class FlaxMistralAttention(nn.Module):
     config: MistralConfig
@@ -335,8 +399,12 @@ class FlaxMistralAttention(nn.Module):
         self.num_key_value_heads = config.num_key_value_heads
         self.num_key_value_groups = self.num_heads // self.num_key_value_heads
         self.head_dim = self.embed_dim // self.num_heads
+        self.enable_lora = config.enable_lora
+        self.lora_rank = config.lora_rank
+        self.lora_alpha = config.lora_alpha
+        dense = partial(LoRADense, lora_rank=self.lora_rank, lora_alpha=self.lora_alpha) if self.enable_lora else nn.Dense
 
-        self.wq = nn.Dense(
+        self.wq = dense(
             config.num_attention_heads*self.head_dim,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
@@ -344,7 +412,7 @@ class FlaxMistralAttention(nn.Module):
             kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
             precision=self.precision,
         )
-        self.wk = nn.Dense(
+        self.wk = dense(
             self.num_key_value_heads * self.head_dim,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
@@ -352,7 +420,7 @@ class FlaxMistralAttention(nn.Module):
             kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
             precision=self.precision,
         )
-        self.wv = nn.Dense(
+        self.wv = dense(
             self.num_key_value_heads * self.head_dim,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
@@ -360,7 +428,7 @@ class FlaxMistralAttention(nn.Module):
             kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
             precision=self.precision,
         )
-        self.wo = nn.Dense(
+        self.wo = dense(
             config.hidden_size,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
@@ -589,8 +657,12 @@ class FlaxMistralMLP(nn.Module):
 
     def setup(self) -> None:
         config = self.config
+        self.enable_lora = config.enable_lora
+        self.lora_rank = config.lora_rank
+        self.lora_alpha = config.lora_alpha
+        dense = partial(LoRADense, lora_rank=self.lora_rank, lora_alpha=self.lora_alpha) if self.enable_lora else nn.Dense
 
-        self.w1 = nn.Dense(
+        self.w1 = dense(
             config.intermediate_size,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
@@ -598,7 +670,7 @@ class FlaxMistralMLP(nn.Module):
             kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
             precision=self.precision,
         )
-        self.w2 = nn.Dense(
+        self.w2 = dense(
             config.hidden_size,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
@@ -606,7 +678,7 @@ class FlaxMistralMLP(nn.Module):
             kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
             precision=self.precision,
         )
-        self.w3 = nn.Dense(
+        self.w3 = dense(
             config.intermediate_size,
             dtype=self.dtype,
             param_dtype=self.param_dtype,

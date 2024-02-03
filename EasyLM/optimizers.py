@@ -13,6 +13,7 @@ import jax.numpy as jnp
 import numpy as np
 from absl import logging
 import optax
+import flax
 
 from EasyLM.jax_utils import float_to_dtype
 
@@ -135,6 +136,7 @@ class AdamWOptimizerFactory(object):
         config.weight_decay = 1e-4
         config.bf16_momentum = False
         config.multiply_by_parameter_scale = False
+        config.enable_lora = False
 
         if updates is not None:
             config.update(ConfigDict(updates).copy_and_resolve_references())
@@ -156,36 +158,60 @@ class AdamWOptimizerFactory(object):
             learning_rate_schedule=learning_rate_schedule,
         )
 
+        def flattened_traversal(fn):
+            """Returns function that is called with `(path, param)` instead of pytree."""
+            def mask(tree):
+                flat = flax.traverse_util.flatten_dict(tree)
+                return flax.traverse_util.unflatten_dict(
+                    {k: fn(k, v) for k, v in flat.items()})
+            return mask
+        
+        def _lora_map_fn(path, *args):
+            return 'adam' if 'lora_A' in path or 'lora_B' in path else 'zero'
+        
+        def _full_map_fn(path, *args):
+            return 'adam'
+        
+        _map_fn = _lora_map_fn if config.enable_lora else _full_map_fn
+
+        mask_fn = flattened_traversal(_map_fn) #lambda path, _: 'adam' if 'lora_A' in path[0] or 'lora_B' in path[0] else 'zero'
+
         if config.multiply_by_parameter_scale:
-            optimizer = optax.chain(
-                optax.clip_by_global_norm(config.clip_gradient),
-                optax.adafactor(
-                    learning_rate=learning_rate_schedule,
-                    multiply_by_parameter_scale=True,
-                    momentum=config.b1,
-                    decay_rate=config.b2,
-                    factored=False,
-                    clipping_threshold=None,
-                    dtype_momentum=jnp.bfloat16 if config.bf16_momentum else jnp.float32,
+            optimizer = optax.multi_transform({'adam': 
+                optax.chain(
+                    optax.clip_by_global_norm(config.clip_gradient),
+                    optax.adafactor(
+                        learning_rate=learning_rate_schedule,
+                        multiply_by_parameter_scale=True,
+                        momentum=config.b1,
+                        decay_rate=config.b2,
+                        factored=False,
+                        clipping_threshold=None,
+                        dtype_momentum=jnp.bfloat16 if config.bf16_momentum else jnp.float32,
+                    ),
+                    optax_add_scheduled_weight_decay(
+                        lambda step: -learning_rate_schedule(step) * config.weight_decay,
+                        weight_decay_mask
+                    )
                 ),
-                optax_add_scheduled_weight_decay(
-                    lambda step: -learning_rate_schedule(step) * config.weight_decay,
-                    weight_decay_mask
-                )
+                'zero': optax.set_to_zero()},
+                mask_fn
             )
         else:
-            optimizer = optax.chain(
-                optax.clip_by_global_norm(config.clip_gradient),
-                optax.adamw(
-                    learning_rate=learning_rate_schedule,
-                    weight_decay=config.weight_decay,
-                    b1=config.b1,
-                    b2=config.b2,
-                    mask=weight_decay_mask,
-                    mu_dtype=jnp.bfloat16 if config.bf16_momentum else jnp.float32,
+            optimizer = optax.multi_transform({'adam': optax.chain(
+                    optax.clip_by_global_norm(config.clip_gradient),
+                    optax.adamw(
+                        learning_rate=learning_rate_schedule,
+                        weight_decay=config.weight_decay,
+                        b1=config.b1,
+                        b2=config.b2,
+                        mask=weight_decay_mask,
+                        mu_dtype=jnp.bfloat16 if config.bf16_momentum else jnp.float32,
+                    ),
                 ),
+                'zero': optax.set_to_zero()},
+                mask_fn
             )
-
         return optimizer, optimizer_info
 
 

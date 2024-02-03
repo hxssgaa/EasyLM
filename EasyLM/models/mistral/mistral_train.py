@@ -107,8 +107,8 @@ def main(argv):
             input_ids=jnp.zeros((16, seq_length), dtype=jnp.int32),
             position_ids=jnp.zeros((16, seq_length), dtype=jnp.int32),
             attention_mask=jnp.ones((16, seq_length), dtype=jnp.int32),
-            rngs=rng_generator(mistral_config.rng_keys()),
-        )
+            rngs=rng_generator(mistral_config.rng_keys())
+        ).unfreeze()
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
 
     def train_step(train_state, rng, batch):
