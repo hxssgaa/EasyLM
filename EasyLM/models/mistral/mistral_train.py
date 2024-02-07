@@ -152,8 +152,6 @@ def main(argv):
             eval_loss=loss,
             eval_accuracy=accuracy,
         )
-        for i, l in enumerate(tags_loss):
-            metrics['eval_loss_%s' % _metadata.get_reverse_tag_index_map()[i]] = l
         return rng_generator(), metrics
 
     train_state_shapes = jax.eval_shape(init_fn, next_rng())
