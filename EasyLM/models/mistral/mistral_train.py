@@ -248,7 +248,8 @@ def main(argv):
                             train_state, sharded_rng, eval_batch
                         )
                         eval_metric_list.append(eval_metrics)
-                    metrics.update(average_metrics(eval_metric_list))
+                    with jax.spmd_mode('allow_all'):
+                        metrics.update(average_metrics(eval_metric_list))
                 log_metrics = {"step": step}
                 log_metrics.update(metrics)
                 log_metrics.update(dataset_metrics)
