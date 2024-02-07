@@ -6,7 +6,8 @@ export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
 WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mistral_train \
     --total_steps=81920 \
     --mesh_dim='1,16,-1'\
-    --log_freq=256 \
+    --log_freq=32 \
+    --eval_steps=64 \
     --save_model_freq=512 \
     --save_milestone_freq=10240 \
     --load_mistral_config='7b' \
@@ -21,6 +22,14 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --train_dataset.json_dataset.enable_padding=True \
     --train_dataset.json_dataset.tokenizer_processes=16 \
     --train_dataset.json_dataset.seq_length=8192 \
+    --eval_dataset.text_processor.tag="language" \
+    --eval_dataset.type=json \
+    --eval_dataset.text_processor_class='InstructTextProcessor' \
+    --eval_dataset.json_dataset.path='gs://hxtpu_bucket/mmlu_eval.jsonl' \
+    --eval_dataset.json_dataset.batch_size=64 \
+    --eval_dataset.json_dataset.enable_padding=True \
+    --eval_dataset.json_dataset.tokenizer_processes=16 \
+    --eval_dataset.json_dataset.seq_length=8192 \
     --logger.output_dir='gs://hxtpu_bucket/sea_mistral_7b_star_inst_outputs/' \
     --logger.online=True \
     --logger.project="sea_mistral_7b" \
