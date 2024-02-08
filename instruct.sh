@@ -39,13 +39,13 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --logger.prefix_to_id=True \
     --logger.prefix="EasyLM-$1" \
     --dtype=bf16 \
-    --optimizer.adamw_optimizer.lr=5e-5 \
-    --optimizer.adamw_optimizer.end_lr=1e-5 \
+    --optimizer.adamw_optimizer.lr=2e-4 \
+    --optimizer.adamw_optimizer.end_lr=2e-5 \
     --optimizer.adamw_optimizer.enable_lora=True \
     --optimizer.adamw_optimizer.b2=0.999 \
     --optimizer.accumulate_gradient_steps=2 \
-    --optimizer.adamw_optimizer.lr_warmup_steps=8192 \
-    --optimizer.adamw_optimizer.lr_decay_steps=81920 \
+    --optimizer.adamw_optimizer.lr_warmup_steps=256 \
+    --optimizer.adamw_optimizer.lr_decay_steps=8192 \
     --optimizer.adamw_optimizer.bf16_momentum=True \
     --checkpointer.save_optimizer_state=False \
     --jax_distributed.initialize_jax_distributed=True
