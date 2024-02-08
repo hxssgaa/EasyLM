@@ -67,8 +67,8 @@ MISTRAL_STANDARD_CONFIGS = {
         'use_cache': True,
         'tie_word_embeddings': False,
         'enable_lora': True,
-        'lora_rank': 64,
-        'lora_alpha': 128,
+        'lora_rank': 128,
+        'lora_alpha': 256,
     },
     'debug_lora': { # A small model for debugging
         'vocab_size': 32000,
