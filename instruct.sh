@@ -70,7 +70,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
 # bash stop_easylm.sh (stop all jobs, wait until commands finish)
 
 # Commit training job: (Make sure the jobs are deleted before commiting training job)
-# bash train_easylm.sh (To start training jobs)
+# bash instruct_easylm.sh abc (To start training jobs for given tags)
 
 #    --load_checkpoint='params::gs://hxtpu_bucket/llama2_7b_easylm' \
 # --optimizer.adamw_optimizer.lr_warmup_steps=2000 \
