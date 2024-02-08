@@ -239,11 +239,19 @@ class MistralConfig(PretrainedConfig):
             ("transformer/wte/embedding", PS("mp", "fsdp")),
             # atention
             ("attention/(wq|wk|wv)/kernel", PS("fsdp", "mp")),
+            ("attention/(wq|wk|wv)/lora_A", PS("fsdp")),
+            ("attention/(wq|wk|wv)/lora_B", PS("fsdp")),
             ("attention/wo/kernel", PS("mp", "fsdp")),
             # mlp
             ("feed_forward/w1/kernel", PS("fsdp", "mp")),
+            ("feed_forward/w1/lora_A", PS("fsdp")),
+            ("feed_forward/w1/lora_B", PS("fsdp")),
             ("feed_forward/w2/kernel", PS("mp", "fsdp")),
+            ("feed_forward/w2/lora_A", PS("fsdp")),
+            ("feed_forward/w2/lora_B", PS("fsdp")),
             ("feed_forward/w3/kernel", PS("fsdp", "mp")),
+            ("feed_forward/w3/lora_A", PS("fsdp",)),
+            ("feed_forward/w3/lora_B", PS("fsdp")),
             # layer norms
             ("attention_norm/kernel", PS(None)),
             ("ffn_norm/kernel", PS(None)),

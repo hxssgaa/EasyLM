@@ -270,11 +270,12 @@ def main(argv):
                 enable_save = cur_value > best_value
             else:
                 enable_save = True
+                cur_value = 0.0
             if enable_save and FLAGS.save_milestone_freq > 0 and (step + 1) % FLAGS.save_milestone_freq == 0:
                 save_checkpoint(train_state, milestone=True)
             elif enable_save and FLAGS.save_model_freq > 0 and (step + 1) % FLAGS.save_model_freq == 0:
                 save_checkpoint(train_state)
-            best_value = max(best_value, )
+            best_value = max(best_value, cur_value)
 
         if FLAGS.save_model_freq > 0:
             save_checkpoint(train_state)
