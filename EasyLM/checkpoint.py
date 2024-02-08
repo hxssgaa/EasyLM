@@ -100,6 +100,7 @@ class StreamingCheckpointer(object):
             )
         if remove_dict_prefix is not None:
             remove_dict_prefix = tuple(remove_dict_prefix)
+        import pdb; pdb.set_trace()
         flattend_train_state = {} if init_train_state is None else flatten_dict(init_train_state)
         with mlxu.open_file(path) as fin:
             # 83886080 bytes = 80 MB, which is 16 blocks on GCS
