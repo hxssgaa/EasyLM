@@ -224,7 +224,6 @@ def main(argv):
 
             train_state, restored_params = checkpointer.load_trainstate_checkpoint(
                 FLAGS.load_checkpoint, train_state_shapes, shard_fns, init_train_state=init_train_state,
-                init_train_state=init_train_state,
             )
             del init_train_state
 
