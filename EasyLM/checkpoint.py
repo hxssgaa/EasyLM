@@ -93,14 +93,14 @@ class StreamingCheckpointer(object):
             )
 
     @staticmethod
-    def load_checkpoint(path, target=None, shard_fns=None, remove_dict_prefix=None):
+    def load_checkpoint(path, target=None, shard_fns=None, remove_dict_prefix=None, init_train_state=None):
         if shard_fns is not None:
             shard_fns = flatten_dict(
                 to_state_dict(shard_fns)
             )
         if remove_dict_prefix is not None:
             remove_dict_prefix = tuple(remove_dict_prefix)
-        flattend_train_state = {}
+        flattend_train_state = {} if init_train_state is None else flatten_dict(init_train_state)
         with mlxu.open_file(path) as fin:
             # 83886080 bytes = 80 MB, which is 16 blocks on GCS
             unpacker = msgpack.Unpacker(fin, read_size=83886080, max_buffer_size=0)
@@ -144,11 +144,7 @@ class StreamingCheckpointer(object):
         if target is None:
             return train_state
 
-        try:
-            return from_state_dict(target, train_state)
-        except Exception as exc:
-            import pdb; pdb.set_trace()
-            print('werwerwerw')
+        return from_state_dict(target, train_state)
 
     @staticmethod
     def load_flax_checkpoint(path, target=None, shard_fns=None):
@@ -170,7 +166,8 @@ class StreamingCheckpointer(object):
     @classmethod
     def load_trainstate_checkpoint(cls, load_from, trainstate_target=None,
                                    trainstate_shard_fns=None,
-                                   disallow_trainstate=False):
+                                   disallow_trainstate=False,
+                                   init_train_state=None):
         if trainstate_target is not None:
             params_target = trainstate_target.params['params']
         else:
@@ -192,6 +189,7 @@ class StreamingCheckpointer(object):
                 path=load_path,
                 target=trainstate_target,
                 shard_fns=trainstate_shard_fns,
+                init_train_state=init_train_state,
             )
         elif load_type == 'trainstate_params':
             # Load the params part of the train state in the streaming format
@@ -200,6 +198,7 @@ class StreamingCheckpointer(object):
                 target=params_target,
                 shard_fns=params_shard_fns,
                 remove_dict_prefix=('params', 'params'),
+                init_train_state=init_train_state,
             )
             restored_params = {'params': restored_params} # flax.core.frozen_dict.freeze(
         elif load_type == 'params':
@@ -208,6 +207,7 @@ class StreamingCheckpointer(object):
                 path=load_path,
                 target=params_target,
                 shard_fns=params_shard_fns,
+                init_train_state=init_train_state,
             )
             restored_params = {'params': restored_params}
         elif load_type == 'flax_params':
