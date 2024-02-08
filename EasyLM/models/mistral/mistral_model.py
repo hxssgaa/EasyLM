@@ -54,6 +54,35 @@ MISTRAL_STANDARD_CONFIGS = {
         'use_cache': True,
         'tie_word_embeddings': False,
     },
+    '7b_original': {
+        'vocab_size': 32000, #54592
+        'hidden_size': 4096,
+        'intermediate_size': 14336,
+        'num_hidden_layers': 32,
+        'num_attention_heads': 32,
+        'num_key_value_heads': 8,
+        'max_sequence_length': 8192,
+        'initializer_range': 0.02,
+        'rms_norm_eps': 1e-5,
+        'use_cache': True,
+        'tie_word_embeddings': False,
+    },
+    '7b_original_lora': {
+        'vocab_size': 32000, #54592
+        'hidden_size': 4096,
+        'intermediate_size': 14336,
+        'num_hidden_layers': 32,
+        'num_attention_heads': 32,
+        'num_key_value_heads': 8,
+        'max_sequence_length': 8192,
+        'initializer_range': 0.02,
+        'rms_norm_eps': 1e-5,
+        'use_cache': True,
+        'tie_word_embeddings': False,
+        'enable_lora': True,
+        'lora_rank': 64,
+        'lora_alpha': 128,
+    },
     '7b_lora': {
         'vocab_size': 54592, #54592
         'hidden_size': 4096,
@@ -67,8 +96,8 @@ MISTRAL_STANDARD_CONFIGS = {
         'use_cache': True,
         'tie_word_embeddings': False,
         'enable_lora': True,
-        'lora_rank': 128,
-        'lora_alpha': 256,
+        'lora_rank': 64,
+        'lora_alpha': 128,
     },
     'debug_lora': { # A small model for debugging
         'vocab_size': 32000,
