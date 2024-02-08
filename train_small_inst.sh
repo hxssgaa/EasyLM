@@ -8,6 +8,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --mesh_dim='1,1,1'\
     --log_freq=1 \
     --save_model_freq=2048 \
+    --eval_steps=64 \
     --load_mistral_config='debug_lora' \
     --tokenizer.vocab_file='./inputs/mistral_tokenizer.model' \
     --train_dataset.text_processor.fields="text" \
@@ -17,8 +18,16 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --train_dataset.json_dataset.path='/home/hxssgaa/Developer/Firefly/data/moss-003-sft-data.jsonl' \
     --train_dataset.json_dataset.enable_padding=True \
     --train_dataset.json_dataset.batch_size=2 \
-    --train_dataset.json_dataset.tokenizer_processes=16 \
+    --train_dataset.json_dataset.tokenizer_processes=1 \
     --train_dataset.json_dataset.seq_length=8192 \
+    --eval_dataset.text_processor.tag="language" \
+    --eval_dataset.type=json \
+    --eval_dataset.text_processor_class='InstructSingleChoiceTextProcessor' \
+    --eval_dataset.json_dataset.path='/home/hxssgaa/Developer/Firefly/data/mmlu_eval.jsonl' \
+    --eval_dataset.json_dataset.batch_size=2 \
+    --eval_dataset.json_dataset.enable_padding=True \
+    --eval_dataset.json_dataset.tokenizer_processes=1 \
+    --eval_dataset.json_dataset.seq_length=8192 \
     --logger.output_dir='./mistral_debug_output' \
     --logger.online=False \
     --logger.project="sea_mistral_7b" \

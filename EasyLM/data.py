@@ -187,6 +187,70 @@ class TextProcessor(object):
         return token_buffer, loss_mask_buffer, [tag_index] * len(token_buffer), *aux
     
 
+class InstructSingleChoiceTextProcessor(object):
+    """ processor that converts a instruction text format for single choice answer selection into tokens. """
+
+    @staticmethod
+    def get_default_config(updates=None):
+        config = ConfigDict()
+        config.conversation_key = 'conversation'
+        config.tag = ''
+        config.subfield_separator = ' '
+        config.add_bos_token = True
+        config.add_eos_token = True
+        config.prepend_text = ''
+        config.base64_token_dtype = 'i4'
+        if updates is not None:
+            config.update(ConfigDict(updates).copy_and_resolve_references())
+        return config
+
+    def __init__(self, config, tokenizer):
+        self.config = self.get_default_config(config)
+        assert self.config.conversation_key != '', (
+            'conversation_key must be specified.'
+        )
+        self.tokenizer = tokenizer
+        self.inst_begin_tokens = tokenizer.encode('[INST]', add_special_tokens=False)
+        self.inst_end_tokens = tokenizer.encode('[/INST]', add_special_tokens=False)
+
+    def __call__(self, example, has_aux=False):
+        if has_aux:
+            example, *aux = example
+        else:
+            aux = tuple()
+
+        tag = example.get(self.config.tag, 'en')
+        if tag not in _metadata.get_tag_index_map():
+            print('tag: %s has index: %d' % (tag, _metadata.get_tag_index()))
+            _metadata.update_tag_index_map({tag: _metadata.get_tag_index()})
+            _metadata.update_reverse_tag_index_map({_metadata.get_tag_index(): tag})
+            tag_index = _metadata.get_tag_index()
+            _metadata.set_tag_index(tag_index + 1)
+        else:
+            tag_index = _metadata.get_tag_index_map()[tag]
+            # print('tag: %s has index: %d, debug:%s, %d' % (tag, tag_index, str(_metadata.get_tag_index_map()), _metadata.get_tag_index()))
+
+        token_buffer = [self.tokenizer.bos_token_id]
+        loss_mask_buffer = [0]
+
+        conversations = example[self.config.conversation_key]
+
+        for conv in conversations:
+            human = conv['human'].strip()
+            assistant = conv['assistant'].strip()
+
+            human_tokens = self.tokenizer.encode(human, add_special_tokens=False)
+            assistant_tokens = self.tokenizer.encode(assistant, add_special_tokens=False)
+
+            input_tokens = self.inst_begin_tokens + human_tokens + self.inst_end_tokens
+            output_tokens = assistant_tokens
+
+            token_buffer += input_tokens + output_tokens
+            loss_mask_buffer += [0] * len(input_tokens) + [0, 1, 0]
+
+        return token_buffer, loss_mask_buffer, [tag_index] * len(token_buffer), *aux
+    
+
 class InstructTextProcessor(object):
     """ processor that converts a instruction text format into tokens. """
 
