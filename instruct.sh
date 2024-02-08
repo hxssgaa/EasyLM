@@ -50,6 +50,25 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --checkpointer.save_optimizer_state=False \
     --jax_distributed.initialize_jax_distributed=True
 
+# Alternative dataset for train_dataset:
+# English-only high quality dataset: gs://hxtpu_bucket/openhermes2_5.jsonl
+# English-Chinese dataset: gs://hxtpu_bucket/star_instruction.jsonl
+
+# Get status of TPU:
+# gcloud alpha compute tpus tpu-vm list (STATUS=ready means the TPU is on) (STATUS=PREEMPTED means the TPU is preempted)
+
+# Delete TPU: (Only if the TPU is preempted)
+# bash remove_tpu.sh (Wait until the commandline to finish)
+
+# Create TPU: (Only if there is no TPU)
+# bash create_tpu.sh (use gcloud alpha compute tpus tpu-vm list to check TPU status after a couple of minutes, wait until STATUS=READY)
+
+# Setup environments: (Only if the TPU is newly created)
+# bash easylm_setup.sh (wait the command to finish)
+
+# 
+
+
 #    --load_checkpoint='params::gs://hxtpu_bucket/llama2_7b_easylm' \
 # --optimizer.adamw_optimizer.lr_warmup_steps=2000 \
 #--llama.remat_attention='checkpoint_dots' \
