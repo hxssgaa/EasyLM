@@ -66,8 +66,11 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
 # Setup environments: (Only if the TPU is newly created)
 # bash easylm_setup.sh (wait the command to finish)
 
-# 
+# Remove existing jobs: (To make sure the jobs are deleted)
+# bash stop_easylm.sh (stop all jobs, wait until commands finish)
 
+# Commit training job: (Make sure the jobs are deleted before commiting training job)
+# bash train_easylm.sh (To start training jobs)
 
 #    --load_checkpoint='params::gs://hxtpu_bucket/llama2_7b_easylm' \
 # --optimizer.adamw_optimizer.lr_warmup_steps=2000 \
