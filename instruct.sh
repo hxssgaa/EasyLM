@@ -12,7 +12,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --save_milestone_freq=0 \
     --save_best=True \
     --best_metric='eval_accuracy' \
-    --load_mistral_config='7b_original_lora' \
+    --load_mistral_config='7b_original' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/mistral_tokenizer.model' \
     --load_checkpoint='params::gs://hxtpu_bucket/mistral_easylm' \
     --mistral.max_sequence_length=8192 \
@@ -39,9 +39,9 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --logger.prefix_to_id=True \
     --logger.prefix="EasyLM-$1" \
     --dtype=bf16 \
-    --optimizer.adamw_optimizer.lr=2e-4 \
-    --optimizer.adamw_optimizer.end_lr=2e-5 \
-    --optimizer.adamw_optimizer.enable_lora=True \
+    --optimizer.adamw_optimizer.lr=5e-5 \
+    --optimizer.adamw_optimizer.end_lr=1e-5 \
+    --optimizer.adamw_optimizer.enable_lora=False \
     --optimizer.adamw_optimizer.b2=0.999 \
     --optimizer.accumulate_gradient_steps=2 \
     --optimizer.adamw_optimizer.lr_warmup_steps=256 \
