@@ -14,7 +14,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --best_metric='eval_accuracy' \
     --load_mistral_config='7b_original_lora' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/mistral_tokenizer.model' \
-    --load_checkpoint='gs://hxtpu_bucket/mistral_easylm' \
+    --load_checkpoint='parama::gs://hxtpu_bucket/mistral_easylm' \
     --mistral.max_sequence_length=8192 \
     --train_dataset.text_processor.tag="language" \
     --train_dataset.type=json \
