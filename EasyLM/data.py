@@ -303,10 +303,10 @@ class InstructTextProcessor(object):
             human = conv['human'].strip()
             assistant = conv['assistant'].strip()
 
-            human_tokens = self.tokenizer.encode(human, add_special_tokens=False)
+            human_tokens = self.tokenizer.encode(human, add_special_tokens=False) if human else []
             assistant_tokens = self.tokenizer.encode(assistant, add_special_tokens=False)
 
-            input_tokens = self.inst_begin_tokens + human_tokens + self.inst_end_tokens
+            input_tokens = self.inst_begin_tokens + human_tokens + self.inst_end_tokens if human_tokens else []
             output_tokens = assistant_tokens + [self.tokenizer.eos_token_id]
 
             token_buffer += input_tokens + output_tokens
