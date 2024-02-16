@@ -406,8 +406,8 @@ PrecisionLike = Union[None, str, lax.Precision, Tuple[str, str],
 
 class LoRADense(nn.Dense):
   """A LoRA based linear transformation applied over the last dimension of the input."""
-  lora_rank: int = 32
-  lora_alpha: int = 64
+  lora_rank: int = 64
+  lora_alpha: int = 128
   scaling = lora_alpha / lora_rank
 
   @compact

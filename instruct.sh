@@ -4,7 +4,7 @@ export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
     # --load_checkpoint='params::gs://hxtpu_bucket/mistral_sea_7b_easylm' \
     # --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
 WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mistral_train \
-    --total_steps=4096 \
+    --total_steps=32768 \
     --mesh_dim='1,16,-1'\
     --log_freq=32 \
     --eval_steps=16 \
@@ -44,8 +44,8 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --optimizer.adamw_optimizer.enable_lora=True \
     --optimizer.adamw_optimizer.b2=0.999 \
     --optimizer.accumulate_gradient_steps=32 \
-    --optimizer.adamw_optimizer.lr_warmup_steps=256 \
-    --optimizer.adamw_optimizer.lr_decay_steps=4096 \
+    --optimizer.adamw_optimizer.lr_warmup_steps=4096 \
+    --optimizer.adamw_optimizer.lr_decay_steps=32768 \
     --optimizer.adamw_optimizer.bf16_momentum=True \
     --checkpointer.save_optimizer_state=False \
     --jax_distributed.initialize_jax_distributed=True
