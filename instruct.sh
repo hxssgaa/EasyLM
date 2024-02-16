@@ -6,8 +6,8 @@ export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
 WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mistral_train \
     --total_steps=32768 \
     --mesh_dim='1,16,-1'\
-    --log_freq=32 \
-    --eval_steps=16 \
+    --log_freq=1024 \
+    --eval_steps=1024 \
     --save_model_freq=64 \
     --save_milestone_freq=0 \
     --save_best=True \
