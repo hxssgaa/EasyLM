@@ -41,6 +41,7 @@ FLAGS, FLAGS_DEF = mlxu.define_flags_with_default(
     tokenizer_path='',
     model_size='13b',
     output_dir='',
+    enable_lora=False,
 )
 
 
@@ -112,8 +113,14 @@ def write_model(loaded, model_path, model_size):
 
     param_count = 0
     index_dict = {"weight_map": {}}
+    scaling = 0.5
     for layer_i in range(n_layers):
         filename = f"pytorch_model-{layer_i + 1}-of-{n_layers + 1}.bin"
+        if FLAGS.enable_lora:
+            for k in ['wq', 'wk', 'wv', 'wo']:
+                loaded[f"transformer.h.{layer_i}.attention.%s.kernel" % k] += (loaded[f"transformer.h.{layer_i}.attention.%s.lora_b" % k] @ loaded[f"transformer.h.{layer_i}.attention.%s.lora_a" % k]).T * scaling
+            for k in ['w1', 'w2', 'w3']:
+                loaded[f"transformer.h.{layer_i}.feed_forward.%s.kernel" % k] += (loaded[f"transformer.h.{layer_i}.feed_forward.%s.lora_b" % k] @ loaded[f"transformer.h.{layer_i}.feed_forward.%s.lora_a" % k]).T * scaling
         state_dict = {
             f"model.layers.{layer_i}.self_attn.q_proj.weight": permute(
                 loaded[f"transformer.h.{layer_i}.attention.wq.kernel"]
