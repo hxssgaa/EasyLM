@@ -119,9 +119,9 @@ def write_model(loaded, model_path, model_size):
         if FLAGS.enable_lora:
             for k in ['wq', 'wk', 'wv', 'wo']:
                 import pdb; pdb.set_trace()
-                loaded[f"transformer.h.{layer_i}.attention.%s.kernel" % k] += (loaded[f"transformer.h.{layer_i}.attention.%s.lora_b" % k] @ loaded[f"transformer.h.{layer_i}.attention.%s.lora_a" % k]).T * scaling
+                loaded[f"transformer.h.{layer_i}.attention.%s.kernel" % k] += (loaded[f"transformer.h.{layer_i}.attention.%s.lora_B" % k] @ loaded[f"transformer.h.{layer_i}.attention.%s.lora_A" % k]).T * scaling
             for k in ['w1', 'w2', 'w3']:
-                loaded[f"transformer.h.{layer_i}.feed_forward.%s.kernel" % k] += (loaded[f"transformer.h.{layer_i}.feed_forward.%s.lora_b" % k] @ loaded[f"transformer.h.{layer_i}.feed_forward.%s.lora_a" % k]).T * scaling
+                loaded[f"transformer.h.{layer_i}.feed_forward.%s.kernel" % k] += (loaded[f"transformer.h.{layer_i}.feed_forward.%s.lora_B" % k] @ loaded[f"transformer.h.{layer_i}.feed_forward.%s.lora_A" % k]).T * scaling
         state_dict = {
             f"model.layers.{layer_i}.self_attn.q_proj.weight": permute(
                 loaded[f"transformer.h.{layer_i}.attention.wq.kernel"]
