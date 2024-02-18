@@ -31,6 +31,7 @@ import flax
 from flax.traverse_util import flatten_dict
 import torch
 from transformers import MistralConfig, MistralForCausalLM
+from tqdm import tqdm
 
 from EasyLM.checkpoint import StreamingCheckpointer
 from EasyLM.jax_utils import float_tensor_to_dtype
@@ -114,7 +115,7 @@ def write_model(loaded, model_path, model_size):
     param_count = 0
     index_dict = {"weight_map": {}}
     scaling = 0.5
-    for layer_i in range(n_layers):
+    for layer_i in tqdm(range(n_layers), desc='converting weights'):
         filename = f"pytorch_model-{layer_i + 1}-of-{n_layers + 1}.bin"
         if FLAGS.enable_lora:
             for k in ['wq', 'wk', 'wv', 'wo']:
