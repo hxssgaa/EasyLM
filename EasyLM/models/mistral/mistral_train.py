@@ -245,26 +245,39 @@ def main(argv):
 
         step_counter = trange(start_step, FLAGS.total_steps, ncols=0)
 
+        def to_numpy(x):
+            return np.array(x).astype(x.dtype)
+
         for step, (batch, dataset_metrics) in zip(step_counter, dataset):
             train_state, sharded_rng, metrics = sharded_train_step(
                 train_state, sharded_rng, batch
             )
             if step % FLAGS.log_freq == 0:
                 if FLAGS.eval_steps > 0:
-                    eval_metric_list = []
+                    # eval_metric_list = []
+                    eval_metrics_dict = None
                     for _ in range(FLAGS.eval_steps):
                         eval_batch, _ = next(eval_iterator)
                         sharded_rng, eval_metrics = sharded_eval_step(
                             train_state, sharded_rng, eval_batch
                         )
-                        eval_metric_list.append(eval_metrics)
-                    with jax.spmd_mode('allow_all'):
-                        metrics.update(average_metrics(eval_metric_list))
-
-                        if FLAGS.save_best:
-                            cur_value = metrics[FLAGS.best_metric]
+                        if eval_metrics_dict is None:
+                            eval_metrics_dict = eval_metrics
                         else:
-                            cur_value = 0.0
+                            for k in eval_metrics_dict:
+                                eval_metrics_dict[k] += eval_metrics[k]
+                        # eval_metric_list.append(eval_metrics)
+                    # with jax.spmd_mode('allow_all'):
+                        # metrics.update(average_metrics(eval_metric_list))
+                    for k in eval_metrics_dict:
+                        eval_metrics_dict[k] /= FLAGS.eval_steps
+                    metrics.update(eval_metrics_dict)
+
+                    if FLAGS.save_best:
+                        result_shape = jax.ShapeDtypeStruct(metrics[FLAGS.best_metric].shape, metrics[FLAGS.best_metric].dtype)
+                        cur_value = jax.pure_callback(to_numpy, result_shape, metrics[FLAGS.best_metric])
+                    else:
+                        cur_value = 0.0
                 log_metrics = {"step": step}
                 log_metrics.update(metrics)
                 log_metrics.update(dataset_metrics)
@@ -272,15 +285,14 @@ def main(argv):
                 logger.log(log_metrics)
                 tqdm.write("\n" + pprint.pformat(log_metrics) + "\n")
             if FLAGS.save_best:
-                with jax.spmd_mode('allow_all'):
-                    if cur_value > best_value and FLAGS.save_milestone_freq > 0 and (step + 1) % FLAGS.save_milestone_freq == 0:
-                        save_checkpoint(train_state, milestone=True)
-                        best_value = max(best_value, cur_value)
-                        tqdm.write('\ncheckpoint milestone %d saved:\n' % (step + 1))
-                    elif cur_value > best_value and FLAGS.save_model_freq > 0 and (step + 1) % FLAGS.save_model_freq == 0:
-                        save_checkpoint(train_state)
-                        best_value = max(best_value, cur_value)
-                        tqdm.write('\ncheckpoint %d saved:\n' % (step + 1))
+                if cur_value > best_value and FLAGS.save_milestone_freq > 0 and (step + 1) % FLAGS.save_milestone_freq == 0:
+                    save_checkpoint(train_state, milestone=True)
+                    best_value = max(best_value, cur_value)
+                    tqdm.write('\ncheckpoint milestone %d saved:\n' % (step + 1))
+                elif cur_value > best_value and FLAGS.save_model_freq > 0 and (step + 1) % FLAGS.save_model_freq == 0:
+                    save_checkpoint(train_state)
+                    best_value = max(best_value, cur_value)
+                    tqdm.write('\ncheckpoint %d saved:\n' % (step + 1))
             else:
                 if FLAGS.save_milestone_freq > 0 and (step + 1) % FLAGS.save_milestone_freq == 0:
                     tqdm.write('\ncheckpoint milestone %d saved:\n' % (step + 1))
