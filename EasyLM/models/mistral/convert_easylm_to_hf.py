@@ -119,9 +119,9 @@ def write_model(loaded, model_path, model_size):
         filename = f"pytorch_model-{layer_i + 1}-of-{n_layers + 1}.bin"
         if FLAGS.enable_lora:
             for k in ['wq', 'wk', 'wv', 'wo']:
-                loaded[f"transformer.h.{layer_i}.attention.%s.kernel" % k] += (loaded[f"transformer.h.{layer_i}.attention.%s.lora_A" % k].T @ loaded[f"transformer.h.{layer_i}.attention.%s.lora_B" % k].T) * scaling
+                loaded[f"transformer.h.{layer_i}.attention.%s.kernel" % k] += (loaded[f"transformer.h.{layer_i}.attention.%s.lora_B" % k] @ loaded[f"transformer.h.{layer_i}.attention.%s.lora_A" % k]) * scaling
             for k in ['w1', 'w2', 'w3']:
-                loaded[f"transformer.h.{layer_i}.feed_forward.%s.kernel" % k] += (loaded[f"transformer.h.{layer_i}.feed_forward.%s.lora_A" % k].T @ loaded[f"transformer.h.{layer_i}.feed_forward.%s.lora_B" % k].T) * scaling
+                loaded[f"transformer.h.{layer_i}.feed_forward.%s.kernel" % k] += (loaded[f"transformer.h.{layer_i}.feed_forward.%s.lora_B" % k] @ loaded[f"transformer.h.{layer_i}.feed_forward.%s.lora_A" % k]) * scaling
         state_dict = {
             f"model.layers.{layer_i}.self_attn.q_proj.weight": permute(
                 loaded[f"transformer.h.{layer_i}.attention.wq.kernel"]
