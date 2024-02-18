@@ -261,6 +261,8 @@ def main(argv):
                         sharded_rng, eval_metrics = sharded_eval_step(
                             train_state, sharded_rng, eval_batch
                         )
+                        for k in eval_metrics:
+                            eval_metrics[k] = eval_metrics[k].item()
                         if eval_metrics_dict is None:
                             eval_metrics_dict = eval_metrics
                         else:
