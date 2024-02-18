@@ -216,6 +216,7 @@ def main(argv):
 
     mesh = MistralConfig.get_jax_mesh(FLAGS.mesh_dim)
     best_value = 0.0
+    cur_value = 0.0
     with mesh:
         train_state, restored_params = None, None
         if FLAGS.load_checkpoint != '':
@@ -259,6 +260,11 @@ def main(argv):
                         eval_metric_list.append(eval_metrics)
                     with jax.spmd_mode('allow_all'):
                         metrics.update(average_metrics(eval_metric_list))
+
+                    if FLAGS.save_best:
+                        cur_value = metrics[FLAGS.best_metric]
+                    else:
+                        cur_value = 0.0
                 log_metrics = {"step": step}
                 log_metrics.update(metrics)
                 log_metrics.update(dataset_metrics)
@@ -266,17 +272,21 @@ def main(argv):
                 logger.log(log_metrics)
                 tqdm.write("\n" + pprint.pformat(log_metrics) + "\n")
             if FLAGS.save_best:
-                cur_value = log_metrics[FLAGS.best_metric]
-                enable_save = cur_value > best_value
+                if cur_value > best_value and FLAGS.save_milestone_freq > 0 and (step + 1) % FLAGS.save_milestone_freq == 0:
+                    save_checkpoint(train_state, milestone=True)
+                    best_value = max(best_value, cur_value)
+                    tqdm.write('\ncheckpoint milestone %d saved:\n' % (step + 1))
+                elif cur_value > best_value and FLAGS.save_model_freq > 0 and (step + 1) % FLAGS.save_model_freq == 0:
+                    save_checkpoint(train_state)
+                    best_value = max(best_value, cur_value)
+                    tqdm.write('\ncheckpoint %d saved:\n' % (step + 1))
             else:
-                enable_save = True
-                cur_value = 0.0
-            import pdb; pdb.set_trace()
-            if enable_save and FLAGS.save_milestone_freq > 0 and (step + 1) % FLAGS.save_milestone_freq == 0:
-                save_checkpoint(train_state, milestone=True)
-            elif enable_save and FLAGS.save_model_freq > 0 and (step + 1) % FLAGS.save_model_freq == 0:
-                save_checkpoint(train_state)
-            best_value = max(best_value, cur_value)
+                if FLAGS.save_milestone_freq > 0 and (step + 1) % FLAGS.save_milestone_freq == 0:
+                    tqdm.write('\ncheckpoint milestone %d saved:\n' % (step + 1))
+                    save_checkpoint(train_state, milestone=True)
+                elif FLAGS.save_model_freq > 0 and (step + 1) % FLAGS.save_model_freq == 0:
+                    save_checkpoint(train_state)
+                    tqdm.write('\ncheckpoint %d saved:\n' % (step + 1))
 
         if FLAGS.save_model_freq > 0:
             save_checkpoint(train_state)

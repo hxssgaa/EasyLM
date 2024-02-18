@@ -7,8 +7,10 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --total_steps=128000 \
     --mesh_dim='1,1,1'\
     --log_freq=1 \
-    --save_model_freq=2048 \
+    --save_model_freq=4 \
     --eval_steps=64 \
+    --save_best=True \
+    --best_metric='accuracy' \
     --load_mistral_config='debug_lora' \
     --tokenizer.vocab_file='./inputs/mistral_tokenizer.model' \
     --train_dataset.text_processor.fields="text" \
