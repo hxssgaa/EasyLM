@@ -6,7 +6,7 @@ import mlxu
 
 import jax
 import jax.numpy as jnp
-from jax.experimental.pjit import pjit
+from jax._src.pjit import pjit
 from jax.sharding import PartitionSpec as PS
 import optax
 from transformers import GenerationConfig, FlaxLogitsProcessorList

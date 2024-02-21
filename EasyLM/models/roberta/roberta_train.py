@@ -9,7 +9,7 @@ import mlxu
 
 import jax
 import jax.numpy as jnp
-from jax.experimental.pjit import pjit, with_sharding_constraint
+from jax._src.pjit import pjit, with_sharding_constraint
 from jax.sharding import PartitionSpec as PS
 from flax.training.train_state import TrainState
 
