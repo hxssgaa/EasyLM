@@ -1,5 +1,5 @@
 python -m EasyLM.models.mistral.mistral_serve \
-    --load_mistral_config='7b' \
+    --load_mistral_config='7b_lora' \
     --load_checkpoint="params::gs://hxtpu_bucket/sea_mistral_7b_star_inst_outputs/EasyLM-replay_lora_openhermes2_4--mix_sea_mc/streaming_params_15360" \
     --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
     --mesh_dim='1,-1,1' \
