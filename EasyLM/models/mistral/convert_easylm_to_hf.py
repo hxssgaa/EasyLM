@@ -114,7 +114,7 @@ def write_model(loaded, model_path, model_size):
 
     param_count = 0
     index_dict = {"weight_map": {}}
-    scaling = 0.5
+    scaling = 2.0
     for layer_i in tqdm(range(n_layers), desc='converting weights'):
         filename = f"pytorch_model-{layer_i + 1}-of-{n_layers + 1}.bin"
         if FLAGS.enable_lora:
