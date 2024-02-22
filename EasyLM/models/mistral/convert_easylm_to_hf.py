@@ -119,7 +119,6 @@ def write_model(loaded, model_path, model_size):
         filename = f"pytorch_model-{layer_i + 1}-of-{n_layers + 1}.bin"
         if FLAGS.enable_lora:
             for k in ['wq', 'wk', 'wv', 'wo']:
-                import pdb; pdb.set_trace()
                 if k == 'wq':
                     loaded[f"transformer.h.{layer_i}.attention.%s.kernel" % k] += (loaded[f"transformer.h.{layer_i}.attention.%s.lora_B" % k] @ loaded[f"transformer.h.{layer_i}.attention.%s.lora_A" % k]).T * scaling
                 else:
