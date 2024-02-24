@@ -6,10 +6,10 @@ export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
 WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mistral_train \
     --total_steps=32768 \
     --mesh_dim='1,16,-1'\
-    --log_freq=1024 \
-    --eval_steps=1024 \
-    --save_model_freq=1024 \
-    --save_milestone_freq=1024 \
+    --log_freq=512 \
+    --eval_steps=512 \
+    --save_model_freq=512 \
+    --save_milestone_freq=512 \
     --save_best=True \
     --best_metric='eval_accuracy' \
     --load_mistral_config='7b'\
@@ -19,7 +19,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --train_dataset.text_processor.tag="language" \
     --train_dataset.type=json \
     --train_dataset.text_processor_class='InstructTextProcessor' \
-    --train_dataset.json_dataset.path='gs://hxtpu_bucket/openhermes2_5_replay.jsonl' \
+    --train_dataset.json_dataset.path='gs://hxtpu_bucket/star_instruction_7_6m_replay.jsonl' \
     --train_dataset.json_dataset.batch_size=32 \
     --train_dataset.json_dataset.enable_padding=True \
     --train_dataset.json_dataset.tokenizer_processes=16 \
@@ -32,7 +32,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --eval_dataset.json_dataset.enable_padding=True \
     --eval_dataset.json_dataset.tokenizer_processes=16 \
     --eval_dataset.json_dataset.seq_length=8192 \
-    --logger.output_dir='gs://hxtpu_bucket/sea_mistral_7b_star_inst_full_outputs/' \
+    --logger.output_dir='gs://hxtpu_bucket/sea_mistral_7b_star_replay_outputs/' \
     --logger.online=True \
     --logger.project="sea_mistral_7b" \
     --logger.experiment_id="mix_sea_mc" \
