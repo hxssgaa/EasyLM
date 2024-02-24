@@ -12,7 +12,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --save_milestone_freq=512 \
     --save_best=True \
     --best_metric='eval_accuracy' \
-    --load_mistral_config='7b'\
+    --load_mistral_config='7b_lora'\
     --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
     --load_checkpoint='trainstate_params::gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/streaming_train_state' \
     --mistral.max_sequence_length=8192 \
@@ -41,7 +41,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --dtype=bf16 \
     --optimizer.adamw_optimizer.lr=2e-4 \
     --optimizer.adamw_optimizer.end_lr=2e-5 \
-    --optimizer.adamw_optimizer.enable_lora=False \
+    --optimizer.adamw_optimizer.enable_lora=True \
     --optimizer.adamw_optimizer.b2=0.999 \
     --optimizer.accumulate_gradient_steps=32 \
     --optimizer.adamw_optimizer.lr_warmup_steps=4096 \
