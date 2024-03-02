@@ -6,9 +6,11 @@ export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
 WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mistral_train \
     --total_steps=128000 \
     --mesh_dim='1,16,-1'\
-    --log_freq=256 \
+    --log_freq=512 \
     --save_model_freq=512 \
     --save_milestone_freq=10240 \
+    --save_best=True \
+    --best_metric='eval_accuracy' \
     --load_mistral_config='7b' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
     --load_dataset_state='gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/dataset.pkl' \
@@ -17,11 +19,19 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --train_dataset.text_processor.fields="text" \
     --train_dataset.text_processor.tag="language" \
     --train_dataset.type=json \
-    --train_dataset.json_dataset.path='gs://hxtpu_bucket/sampled_seamc.jsonl' \
+    --train_dataset.json_dataset.path='gs://hxtpu_bucket/multilingual.train.jsonl' \
     --train_dataset.json_dataset.batch_size=64 \
     --train_dataset.json_dataset.tokenizer_processes=16 \
     --train_dataset.json_dataset.seq_length=8192 \
-    --logger.output_dir='gs://hxtpu_bucket/sea_mistral_7b_outputs' \
+    --eval_dataset.text_processor.tag="category" \
+    --eval_dataset.type=json \
+    --eval_dataset.text_processor_class='InstructSingleChoiceTextProcessor' \
+    --eval_dataset.json_dataset.path='gs://hxtpu_bucket/sgeval_lite.jsonl' \
+    --eval_dataset.json_dataset.batch_size=64 \
+    --eval_dataset.json_dataset.enable_padding=True \
+    --eval_dataset.json_dataset.tokenizer_proce \
+    --eval_dataset.json_dataset.seq_length=8192 \
+    --logger.output_dir='gs://hxtpu_bucket/regional_sea_mistral_7b_outputs' \
     --logger.online=True \
     --logger.project="sea_mistral_7b" \
     --logger.experiment_id="mix_sea_mc" \
