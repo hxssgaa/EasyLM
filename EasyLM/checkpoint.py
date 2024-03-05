@@ -144,11 +144,7 @@ class StreamingCheckpointer(object):
         if target is None:
             return train_state
 
-        try:
-            return from_state_dict(target, train_state)
-        except Exception as exc:
-            import pdb; pdb.set_trace()
-            print()
+        return from_state_dict(target, train_state)
 
     @staticmethod
     def load_flax_checkpoint(path, target=None, shard_fns=None):
@@ -189,11 +185,12 @@ class StreamingCheckpointer(object):
         restored_params = None
         if load_type == 'trainstate':
             # Load the entire train state in the streaming format
+            # If loading entire train state, don't need to provide init train state.
             train_state = cls.load_checkpoint(
                 path=load_path,
                 target=trainstate_target,
                 shard_fns=trainstate_shard_fns,
-                init_train_state=init_train_state,
+                init_train_state=None,
             )
         elif load_type == 'trainstate_params':
             # Load the params part of the train state in the streaming format
