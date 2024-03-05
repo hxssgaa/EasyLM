@@ -144,7 +144,11 @@ class StreamingCheckpointer(object):
         if target is None:
             return train_state
 
-        return from_state_dict(target, train_state)
+        try:
+            return from_state_dict(target, train_state)
+        except Exception as exc:
+            import pdb; pdb.set_trace()
+            print()
 
     @staticmethod
     def load_flax_checkpoint(path, target=None, shard_fns=None):
