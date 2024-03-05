@@ -7,14 +7,15 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --total_steps=128000 \
     --mesh_dim='1,16,-1'\
     --log_freq=512 \
+    --eval_steps=512 \
     --save_model_freq=512 \
     --save_milestone_freq=10240 \
     --save_best=True \
     --best_metric='eval_accuracy' \
     --load_mistral_config='7b' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
-    --load_dataset_state='gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/dataset.pkl' \
-    --load_checkpoint='trainstate::gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/streaming_train_state' \
+    --load_dataset_state='gs://hxtpu_bucket/regional_sea_mistral_7b_outputs/EasyLM-2--mix_sea_mc/dataset.pkl' \
+    --load_checkpoint='trainstate::gs://hxtpu_bucket/regional_sea_mistral_7b_outputs/EasyLM-2--mix_sea_mc/streaming_train_state' \
     --mistral.max_sequence_length=8192 \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.text_processor.tag="language" \
@@ -31,7 +32,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --eval_dataset.json_dataset.enable_padding=True \
     --eval_dataset.json_dataset.tokenizer_processes=16 \
     --eval_dataset.json_dataset.seq_length=8192 \
-    --logger.output_dir='gs://hxtpu_bucket/regional_sea_mistral_7b_outputs' \
+    --logger.output_dir='gs://hxtpu_bucket/regional_sea_mistral_7b_outputs2' \
     --logger.online=True \
     --logger.project="sea_mistral_7b" \
     --logger.experiment_id="mix_sea_mc" \
