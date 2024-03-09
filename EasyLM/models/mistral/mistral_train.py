@@ -106,9 +106,9 @@ def main(argv):
     def init_fn(rng):
         rng_generator = JaxRNG(rng)
         params = model.init(
-            input_ids=jnp.zeros((16, seq_length), dtype=jnp.int32),
-            position_ids=jnp.zeros((16, seq_length), dtype=jnp.int32),
-            attention_mask=jnp.ones((16, seq_length), dtype=jnp.int32),
+            input_ids=jnp.zeros((32, seq_length), dtype=jnp.int32),
+            position_ids=jnp.zeros((32, seq_length), dtype=jnp.int32),
+            attention_mask=jnp.ones((32, seq_length), dtype=jnp.int32),
             rngs=rng_generator(mistral_config.rng_keys())
         )
         if not isinstance(params, dict):
