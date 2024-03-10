@@ -24,14 +24,6 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --train_dataset.json_dataset.batch_size=128 \
     --train_dataset.json_dataset.tokenizer_processes=16 \
     --train_dataset.json_dataset.seq_length=8192 \
-    --eval_dataset.text_processor.tag="category" \
-    --eval_dataset.type=json \
-    --eval_dataset.text_processor_class='InstructSingleChoiceTextProcessor' \
-    --eval_dataset.json_dataset.path='gs://hxtpu_bucket/sgeval_lite.jsonl' \
-    --eval_dataset.json_dataset.batch_size=128 \
-    --eval_dataset.json_dataset.enable_padding=True \
-    --eval_dataset.json_dataset.tokenizer_processes=16 \
-    --eval_dataset.json_dataset.seq_length=8192 \
     --logger.output_dir='gs://hxtpu_bucket/regional_sea_mistral_7b_outputs2' \
     --logger.online=False \
     --logger.project="sea_mistral_7b" \
@@ -53,3 +45,11 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
 # --optimizer.adamw_optimizer.lr_warmup_steps=2000 \
 #--llama.remat_attention='checkpoint_dots' \
 #256 batch size
+    # --eval_dataset.text_processor.tag="category" \
+    # --eval_dataset.type=json \
+    # --eval_dataset.text_processor_class='InstructSingleChoiceTextProcessor' \
+    # --eval_dataset.json_dataset.path='gs://hxtpu_bucket/sgeval_lite.jsonl' \
+    # --eval_dataset.json_dataset.batch_size=128 \
+    # --eval_dataset.json_dataset.enable_padding=True \
+    # --eval_dataset.json_dataset.tokenizer_processes=16 \
+    # --eval_dataset.json_dataset.seq_length=8192 \
