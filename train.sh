@@ -7,7 +7,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --total_steps=128000 \
     --mesh_dim='1,16,4'\
     --log_freq=512 \
-    --eval_steps=4 \
+    --eval_steps=0 \
     --save_model_freq=512 \
     --save_milestone_freq=10240 \
     --save_best=True \
@@ -33,7 +33,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --eval_dataset.json_dataset.tokenizer_processes=16 \
     --eval_dataset.json_dataset.seq_length=8192 \
     --logger.output_dir='gs://hxtpu_bucket/regional_sea_mistral_7b_outputs2' \
-    --logger.online=True \
+    --logger.online=False \
     --logger.project="sea_mistral_7b" \
     --logger.experiment_id="mix_sea_mc" \
     --logger.prefix_to_id=True \
