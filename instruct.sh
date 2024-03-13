@@ -7,7 +7,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --total_steps=32768 \
     --mesh_dim='!1,32,2'\
     --log_freq=512 \
-    --eval_steps=512 \
+    --eval_steps=4 \
     --save_model_freq=512 \
     --save_milestone_freq=8192 \
     --save_best=True \
