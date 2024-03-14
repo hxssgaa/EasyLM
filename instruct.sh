@@ -20,7 +20,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --train_dataset.type=json \
     --train_dataset.text_processor_class='InstructTextProcessor' \
     --train_dataset.json_dataset.path='gs://hxtpu_bucket/openhermes2_5_replay.jsonl' \
-    --train_dataset.json_dataset.batch_size=128 \
+    --train_dataset.json_dataset.batch_size=64 \
     --train_dataset.json_dataset.enable_padding=True \
     --train_dataset.json_dataset.tokenizer_processes=16 \
     --train_dataset.json_dataset.seq_length=8192 \
@@ -28,7 +28,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --eval_dataset.type=json \
     --eval_dataset.text_processor_class='InstructSingleChoiceTextProcessor' \
     --eval_dataset.json_dataset.path='gs://hxtpu_bucket/sgeval_lite.jsonl' \
-    --eval_dataset.json_dataset.batch_size=128 \
+    --eval_dataset.json_dataset.batch_size=64 \
     --eval_dataset.json_dataset.enable_padding=True \
     --eval_dataset.json_dataset.tokenizer_processes=16 \
     --eval_dataset.json_dataset.seq_length=8192 \
@@ -43,7 +43,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --optimizer.adamw_optimizer.end_lr=2e-5 \
     --optimizer.adamw_optimizer.enable_lora=True \
     --optimizer.adamw_optimizer.b2=0.999 \
-    --optimizer.accumulate_gradient_steps=8 \
+    --optimizer.accumulate_gradient_steps=16 \
     --optimizer.adamw_optimizer.lr_warmup_steps=4096 \
     --optimizer.adamw_optimizer.lr_decay_steps=32768 \
     --optimizer.adamw_optimizer.bf16_momentum=True \
