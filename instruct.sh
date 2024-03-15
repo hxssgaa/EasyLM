@@ -20,7 +20,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --train_dataset.type=json \
     --train_dataset.text_processor_class='InstructTextProcessor' \
     --train_dataset.json_dataset.path='gs://hxtpu_bucket/openhermes2_5_replay.jsonl' \
-    --train_dataset.json_dataset.batch_size=64 \
+    --train_dataset.json_dataset.batch_size=32 \
     --train_dataset.json_dataset.enable_padding=True \
     --train_dataset.json_dataset.tokenizer_processes=16 \
     --train_dataset.json_dataset.seq_length=8192 \
