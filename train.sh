@@ -7,7 +7,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --total_steps=128000 \
     --mesh_dim='!1,32,2'\
     --log_freq=512 \
-    --eval_steps=8 \
+    --eval_steps=4 \
     --save_model_freq=512 \
     --save_milestone_freq=10240 \
     --save_best=True \
@@ -27,7 +27,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --eval_dataset.type=json \
     --eval_dataset.text_processor_class='InstructSingleChoiceTextProcessor' \
     --eval_dataset.json_dataset.path='gs://hxtpu_bucket/sgeval_lite.jsonl' \
-    --eval_dataset.json_dataset.batch_size=64 \
+    --eval_dataset.json_dataset.batch_size=32 \
     --eval_dataset.json_dataset.enable_padding=True \
     --eval_dataset.json_dataset.tokenizer_processes=16 \
     --eval_dataset.json_dataset.seq_length=8192 \
