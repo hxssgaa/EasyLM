@@ -32,7 +32,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --eval_dataset.json_dataset.tokenizer_processes=16 \
     --eval_dataset.json_dataset.seq_length=8192 \
     --logger.output_dir='gs://hxtpu_bucket/regional_sea_mistral_7b_inst_pretrain_unified' \
-    --logger.online=True \
+    --logger.online=False \
     --logger.project="regional_sea_mistral_7b" \
     --logger.experiment_id="inst_pretrain_unified" \
     --logger.prefix_to_id=True \
