@@ -7,123 +7,123 @@ from functools import partial
 
 import numpy as np
 import jax
+from jax.lib import xla_bridge
 import jax.numpy as jnp
 from jax import lax
-from jax.lib import xla_bridge
 from jax.sharding import PartitionSpec as PS
+from jax.experimental.shard_map import shard_map
 import flax.linen as nn
+from flax.core.frozen_dict import FrozenDict, freeze, unfreeze
 from flax.linen import combine_masks, make_causal_mask
-from flax.linen.attention import dot_product_attention_weights
 from flax.traverse_util import flatten_dict, unflatten_dict
 from flax.linen import partitioning as nn_partitioning
-from jax.experimental.shard_map import shard_map
-from jax.experimental.maps import thread_resources
-import einops
 
 import sentencepiece as spm
 from transformers.configuration_utils import PretrainedConfig
 from transformers.utils import logging
 from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.modeling_flax_outputs import FlaxBaseModelOutput, FlaxCausalLMOutput
-from transformers.modeling_flax_utils import ACT2FN, FlaxPreTrainedModel, append_call_sample_docstring
+from transformers.modeling_flax_utils import FlaxPreTrainedModel
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
 
 from ml_collections import ConfigDict
-from ml_collections.config_dict import config_dict
-from mlxu import function_args_to_config, load_pickle, open_file
-
-from EasyLM.bpt import blockwise_ffn, blockwise_attn
-from EasyLM.flash_attn_utils import flash_attention_implementation
-from EasyLM.jax_utils import (
-    with_sharding_constraint, get_jax_mesh, get_gradient_checkpoint_policy
-)
-from flax.linen.dtypes import promote_dtype
-from flax.linen.module import compact
-from EasyLM.ring_attention import blockwise_ffn, ring_flash_attention_tpu, \
+from tux import function_args_to_config, load_pickle, open_file,  with_sharding_constraint, get_jax_mesh, get_gradient_checkpoint_policy
+from bpt.ring_attention import blockwise_ffn, ring_flash_attention_tpu, \
     ring_attention_standard, ring_attention
 
 
-MISTRAL_STANDARD_CONFIGS = {
-    '7b': {
-        'vocab_size': 54592, #54592
-        'hidden_size': 4096,
-        'intermediate_size': 14336,
-        'num_hidden_layers': 32,
-        'num_attention_heads': 32,
-        'num_key_value_heads': 8,
-        'max_sequence_length': 8192,
-        'initializer_range': 0.02,
-        'rms_norm_eps': 1e-5,
-        'use_cache': True,
-        'tie_word_embeddings': False,
-    },
-    '7b_original': {
-        'vocab_size': 32000, #54592
-        'hidden_size': 4096,
-        'intermediate_size': 14336,
-        'num_hidden_layers': 32,
-        'num_attention_heads': 32,
-        'num_key_value_heads': 8,
-        'max_sequence_length': 8192,
-        'initializer_range': 0.02,
-        'rms_norm_eps': 1e-5,
-        'use_cache': True,
-        'tie_word_embeddings': False,
-    },
-    '7b_original_lora': {
-        'vocab_size': 32000, #54592
-        'hidden_size': 4096,
-        'intermediate_size': 14336,
-        'num_hidden_layers': 32,
-        'num_attention_heads': 32,
-        'num_key_value_heads': 8,
-        'max_sequence_length': 8192,
-        'initializer_range': 0.02,
-        'rms_norm_eps': 1e-5,
-        'use_cache': True,
-        'tie_word_embeddings': False,
-        'enable_lora': True,
-        'lora_rank': 64,
-        'lora_alpha': 128,
-    },
-    '7b_lora': {
-        'vocab_size': 54592, #54592
-        'hidden_size': 4096,
-        'intermediate_size': 14336,
-        'num_hidden_layers': 32,
-        'num_attention_heads': 32,
-        'num_key_value_heads': 8,
-        'max_sequence_length': 8192,
-        'initializer_range': 0.02,
-        'rms_norm_eps': 1e-5,
-        'use_cache': True,
-        'tie_word_embeddings': False,
-        'enable_lora': True,
-        'lora_rank': 64,
-        'lora_alpha': 128,
-    },
-    'debug_lora': { # A small model for debugging
+LLAMA_STANDARD_CONFIGS = {
+    '200m': {
         'vocab_size': 32000,
         'hidden_size': 1024,
-        'intermediate_size': 8192,
-        'num_hidden_layers': 24,
-        'num_attention_heads': 32,
-        'max_sequence_length': 8192,
+        'intermediate_size': 2048,
+        'num_hidden_layers': 14,
+        'num_attention_heads': 8,
+        'max_sequence_length': 2048,
         'initializer_range': 0.02,
         'rms_norm_eps': 1e-6,
         'use_cache': True,
         'tie_word_embeddings': False,
-        'enable_lora': True,
-        'lora_rank': 64,
-        'lora_alpha': 128,
+    },
+    '1b': {
+        'vocab_size': 32000,
+        'hidden_size': 2048,
+        'intermediate_size': 5504,
+        'num_hidden_layers': 22,
+        'num_attention_heads': 16,
+        'max_sequence_length': 2048,
+        'initializer_range': 0.02,
+        'rms_norm_eps': 1e-6,
+        'use_cache': True,
+        'tie_word_embeddings': False,
+    },
+    '3b': {
+        'vocab_size': 32000,
+        'hidden_size': 3200,
+        'intermediate_size': 8640,
+        'num_hidden_layers': 26,
+        'num_attention_heads': 32,
+        'max_sequence_length': 2048,
+        'initializer_range': 0.02,
+        'rms_norm_eps': 1e-6,
+        'use_cache': True,
+        'tie_word_embeddings': False,
+    },
+    '7b': {
+        'vocab_size': 32000,
+        'hidden_size': 4096,
+        'intermediate_size': 11008,
+        'num_hidden_layers': 32,
+        'num_attention_heads': 32,
+        'max_sequence_length': 4096,
+        'initializer_range': 0.02,
+        'rms_norm_eps': 1e-6,
+        'use_cache': True,
+        'tie_word_embeddings': False,
+    },
+    '13b': {
+        'vocab_size': 32000,
+        'hidden_size': 5120,
+        'intermediate_size': 13824,
+        'num_hidden_layers': 40,
+        'num_attention_heads': 40,
+        'max_sequence_length': 2048,
+        'initializer_range': 0.02,
+        'rms_norm_eps': 1e-6,
+        'use_cache': True,
+        'tie_word_embeddings': False,
+    },
+    '30b': {
+        'vocab_size': 32000,
+        'hidden_size': 6656,
+        'intermediate_size': 17920,
+        'num_hidden_layers': 60,
+        'num_attention_heads': 52,
+        'max_sequence_length': 2048,
+        'initializer_range': 0.02,
+        'rms_norm_eps': 1e-6,
+        'use_cache': True,
+        'tie_word_embeddings': False,
+    },
+    '65b': {
+        'vocab_size': 32000,
+        'hidden_size': 8192,
+        'intermediate_size': 22016,
+        'num_hidden_layers': 80,
+        'num_attention_heads': 64,
+        'max_sequence_length': 2048,
+        'initializer_range': 0.02,
+        'rms_norm_eps': 1e-5,
+        'use_cache': True,
+        'tie_word_embeddings': False,
     },
     'debug': { # A small model for debugging
         'vocab_size': 32000,
-        'hidden_size': 1024,
-        'intermediate_size': 8192,
-        'num_hidden_layers': 24,
-        'num_attention_heads': 32,
-        'max_sequence_length': 8192,
+        'hidden_size': 256,
+        'intermediate_size': 256,
+        'num_hidden_layers': 2,
+        'num_attention_heads': 2,
+        'max_sequence_length': 2048,
         'initializer_range': 0.02,
         'rms_norm_eps': 1e-6,
         'use_cache': True,
@@ -132,85 +132,38 @@ MISTRAL_STANDARD_CONFIGS = {
 }
 
 
-class MistralConfig(PretrainedConfig):
-    r"""
-    This is the configuration class to store the configuration of a [`~MistralModel`]. It is used to instantiate an Mistral
-    model according to the specified arguments, defining the model architecture. Instantiating a configuration with the
-    defaults will yield a similar configuration to that of the Mistral-7B.
-    Configuration objects inherit from [`PretrainedConfig`] and can be used to control the model outputs. Read the
-    documentation from [`PretrainedConfig`] for more information.
-    Args:
-        vocab_size (`int`, *optional*, defaults to 32000):
-            Vocabulary size of the Mistral model. Defines the number of different tokens that can be represented by the
-            `inputs_ids` passed when calling [`~MistralModel`] or [`~TFMistralModel`].
-        hidden_size (`int`, *optional*, defaults to 4096):
-            Dimension of the hidden representations.
-        intermediate_size (`int`, *optional*, defaults to 11008):
-            Dimension of the MLP representations.
-        num_hidden_layers (`int`, *optional*, defaults to 32):
-            Number of hidden layers in the Transformer encoder.
-        num_attention_heads (`int`, *optional*, defaults to 32):
-            Number of attention heads for each attention layer in the Transformer encoder.
-        hidden_act (`str` or `function`, *optional*, defaults to `"silu"`):
-            The non-linear activation function (function or string) in the decoder.
-        max_sequence_length (`int`, *optional*, defaults to 2048):
-            Max sequence length for model (for RoPE computation)
-        initializer_range (`float`, *optional*, defaults to 0.02):
-            The standard deviation of the truncated_normal_initializer for initializing all weight matrices.
-        rms_norm_eps (`float`, *optional*, defaults to 1e-12):
-            The epsilon used by the rms normalization layers.
-        use_cache (`bool`, *optional*, defaults to `True`):
-            Whether or not the model should return the last key/values attentions (not used by all models). Only
-            relevant if `config.is_decoder=True`.
-        tie_word_embeddings(`bool`, *optional*, defaults to `False`):
-            Whether to tie weight embeddings
-        Example:
-    ```python
-    >>> from transformers import MistralModel, MistralConfig
-    >>> # Initializing a Mistral mistral-7b style configuration
-    >>> configuration = MistralConfig()
-    >>> # Initializing a model from the mistral-7b style configuration
-    >>> model = MistralModel(configuration)
-    >>> # Accessing the model configuration
-    >>> configuration = model.config
-    ```"""
-    model_type = "mistral"
+class LLaMAConfig(PretrainedConfig):
+    model_type = "llama"
 
     def __init__(
         self,
-        vocab_size=32000, #54592,
+        vocab_size=32000,
         hidden_size=4096,
-        intermediate_size=14336,
+        intermediate_size=11008,
         num_hidden_layers=32,
         num_attention_heads=32,
-        num_key_value_heads=8,
-        max_sequence_length=8192,
-        rms_norm_eps=1e-5,
+        max_sequence_length=4096,
+        rms_norm_eps=1e-6,
         initializer_range=0.02,
         use_cache=True,
-        # pad_token_id=-1,
         bos_token_id=0,
         eos_token_id=1,
         resid_pdrop=0.0,
         embd_pdrop=0.0,
         attn_pdrop=0.0,
         tie_word_embeddings=False,
-        remat_block='nothing_saveable',
+        remat_block='',
         remat_attention='',
         remat_mlp='',
         scan_attention=False,
-        flash_attention=True,
-        enable_lora=False,
-        lora_rank=8,
-        lora_alpha=16,
         scan_mlp=False,
-        scan_query_chunk_size=512,
-        scan_key_chunk_size=512,
-        scan_mlp_chunk_size=512,
+        scan_query_chunk_size=1024,
+        scan_key_chunk_size=1024,
+        scan_mlp_chunk_size=1024,
         scan_layers=True,
         param_scan_axis=0,
-        fcm_min_ratio=0.0,
-        fcm_max_ratio=0.0,
+        mesh_dim=None,
+        theta=10000,
         **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -219,7 +172,6 @@ class MistralConfig(PretrainedConfig):
         self.intermediate_size = intermediate_size
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
-        self.num_key_value_heads = num_key_value_heads
         self.max_sequence_length = max_sequence_length
         self.rms_norm_eps = rms_norm_eps
         self.use_cache = use_cache
@@ -230,20 +182,15 @@ class MistralConfig(PretrainedConfig):
         self.remat_attention = remat_attention
         self.remat_mlp = remat_mlp
         self.scan_attention = scan_attention
-        self.flash_attention = flash_attention
-        self.enable_lora = enable_lora
-        self.lora_rank = lora_rank
-        self.lora_alpha = lora_alpha
         self.scan_mlp = scan_mlp
         self.scan_query_chunk_size = scan_query_chunk_size
         self.scan_key_chunk_size = scan_key_chunk_size
         self.scan_mlp_chunk_size = scan_mlp_chunk_size
         self.scan_layers = scan_layers
         self.param_scan_axis = param_scan_axis
-        self.fcm_min_ratio = fcm_min_ratio
-        self.fcm_max_ratio = fcm_max_ratio
+        self.mesh_dim = mesh_dim
+        self.theta = theta
         super().__init__(
-            # pad_token_id=pad_token_id,
             bos_token_id=bos_token_id,
             eos_token_id=eos_token_id,
             tie_word_embeddings=tie_word_embeddings,
@@ -262,7 +209,7 @@ class MistralConfig(PretrainedConfig):
     @staticmethod
     def get_jax_mesh(axis_dims):
         return get_jax_mesh(axis_dims, ('dp', 'fsdp', 'tp', 'sp'))
-    
+
     @staticmethod
     def get_ranks_and_size(mesh):
         out = dict(mesh=mesh)
@@ -278,44 +225,75 @@ class MistralConfig(PretrainedConfig):
                    mp_node_rank=mp_node_rank)
         return out
 
+
     @staticmethod
-    def get_partition_rules():
-        """ Parition rules for GPTJ. Note that these rules are orderd, so that
-            the beginning rules match first. It is important to use
-            PartitionSpec() instead of None here because JAX does not treat
-            None as a pytree leaf.
-        """
-        return (
-            # embeddings
-            ("transformer/wte/embedding", PS("tp", ("fsdp", "sp"))),
-            # atention
-            ("attention/(wq|wk|wv)/kernel", PS(("fsdp", "sp"), "tp")),
-            ("attention/(wq|wk|wv)/lora_A", PS(("fsdp", "sp"))),
-            ("attention/(wq|wk|wv)/lora_B", PS(("fsdp", "sp"))),
-            ("attention/wo/kernel", PS("tp", ("fsdp", "sp"))),
-            # mlp
-            ("feed_forward/w1/kernel", PS(("fsdp", "sp"), "tp")),
-            ("feed_forward/w1/lora_A", PS(("fsdp", "sp"))),
-            ("feed_forward/w1/lora_B", PS(("fsdp", "sp"))),
-            ("feed_forward/w2/kernel", PS("tp", ("fsdp", "sp"))),
-            ("feed_forward/w2/lora_A", PS(("fsdp", "sp"))),
-            ("feed_forward/w2/lora_B", PS(("fsdp", "sp"))),
-            ("feed_forward/w3/kernel", PS(("fsdp", "sp"), "tp")),
-            ("feed_forward/w3/lora_A", PS(("fsdp", "sp"))),
-            ("feed_forward/w3/lora_B", PS(("fsdp", "sp"))),
-            # layer norms
-            ("attention_norm/kernel", PS(None)),
-            ("ffn_norm/kernel", PS(None)),
-            # output head
-            ("transformer/ln_f/kernel", PS(None)),
-            ("lm_head/kernel", PS(("fsdp", "sp"), "tp")),
-            ('.*', PS(None)),
-        )
+    def get_partition_rules(scan_layers=False, scan_axis=0):
+        """Parition rules are orderd, so that the beginning rules match first."""
+        if scan_layers:
+            if scan_axis == 0:
+                return (
+                    # embeddings
+                    ("transformer/wte/embedding", PS("tp", ("fsdp", "sp"))),
+                    # atention
+                    ("attention/(wq|wk|wv)/kernel", PS(None, ("fsdp", "sp"), "tp")),
+                    ("attention/wo/kernel", PS(None, "tp", ("fsdp", "sp"))),
+                    # mlp
+                    ("feed_forward/w1/kernel", PS(None, ("fsdp", "sp"), "tp")),
+                    ("feed_forward/w2/kernel", PS(None, "tp", ("fsdp", "sp"))),
+                    ("feed_forward/w3/kernel", PS(None, ("fsdp", "sp"), "tp")),
+                    # layer norms
+                    ("attention_norm/kernel", PS(None, None)),
+                    ("ffn_norm/kernel", PS(None, None)),
+                    # output head
+                    ("transformer/ln_f/kernel", PS(None)),
+                    ("lm_head/kernel", PS(("fsdp", "sp"), "tp")),
+                    ('.*', PS(None)),
+                )
+            elif scan_axis == 1:
+                return (
+                    # embeddings
+                    ("transformer/wte/embedding", PS("tp", ("fsdp", "sp"))),
+                    # atention
+                    ("attention/(wq|wk|wv)/kernel", PS(("fsdp", "sp"), None, "tp")),
+                    ("attention/wo/kernel", PS("tp", None, ("fsdp", "sp"))),
+                    # mlp
+                    ("feed_forward/w1/kernel", PS(("fsdp", "sp"), None, "tp")),
+                    ("feed_forward/w2/kernel", PS("tp", None, ("fsdp", "sp"))),
+                    ("feed_forward/w3/kernel", PS(("fsdp", "sp"), None, "tp")),
+                    # layer norms
+                    ("attention_norm/kernel", PS(None, None)),
+                    ("ffn_norm/kernel", PS(None, None)),
+                    # output head
+                    ("transformer/ln_f/kernel", PS(None)),
+                    ("lm_head/kernel", PS(("fsdp", "sp"), "tp")),
+                    ('.*', PS(None)),
+                )
+            else:
+                raise ValueError(f"Invalid scan_axis {scan_axis}")
+        else:
+            return (
+                # embeddings
+                ("transformer/wte/embedding", PS("tp", ("fsdp", "sp"))),
+                # atention
+                ("attention/(wq|wk|wv)/kernel", PS(("fsdp", "sp"), "tp")),
+                ("attention/wo/kernel", PS("tp", ("fsdp", "sp"))),
+                # mlp
+                ("feed_forward/w1/kernel", PS(("fsdp", "sp"), "tp")),
+                ("feed_forward/w2/kernel", PS("tp", ("fsdp", "sp"))),
+                ("feed_forward/w3/kernel", PS(("fsdp", "sp"), "tp")),
+                # layer norms
+                ("attention_norm/kernel", PS(None)),
+                ("ffn_norm/kernel", PS(None)),
+                # output head
+                ("transformer/ln_f/kernel", PS(None)),
+                ("lm_head/kernel", PS(("fsdp", "sp"), "tp")),
+                ('.*', PS(None)),
+            )
 
     @staticmethod
     def get_weight_decay_exclusions():
         return tuple()
-    
+
     @staticmethod
     def get_frozen_param_exclusions(freeze_base):
         if freeze_base:
@@ -342,7 +320,7 @@ class MistralConfig(PretrainedConfig):
     def get_tokenizer(cls, config, padding_side='left', truncation_side='right'):
         config = cls.get_tokenizer_config(config)
         assert config.vocab_file != '', 'vocab_file must be specified'
-        tokenizer = MistralTokenizer(
+        tokenizer = LLaMATokenizer(
             vocab_file=config.vocab_file,
             add_bos_token=config.add_bos_token,
             add_eos_token=config.add_eos_token,
@@ -353,11 +331,11 @@ class MistralConfig(PretrainedConfig):
 
     @classmethod
     def load_config(cls, path):
-        if path in MISTRAL_STANDARD_CONFIGS:
-            return cls.from_dict(MISTRAL_STANDARD_CONFIGS[path])
+        if path in LLAMA_STANDARD_CONFIGS:
+            return cls.from_dict(LLAMA_STANDARD_CONFIGS[path])
         load_type, load_path = path.split('::', 1)
         if load_type == 'pickle':
-            return cls.from_dict(load_pickle(load_path)['mistral_config'])
+            return cls.from_dict(load_pickle(load_path)['llama_config'])
         elif load_type == 'json':
             with open_file(load_path, 'r') as fin:
                 raw_config = fin.read()
@@ -394,13 +372,15 @@ class RMSNorm(nn.Module):
         weight = jnp.asarray(self.weight, self.dtype)
         return output * weight
 
-def precompute_freqs_cis(dim: int, end: int, theta: float=10000.0, dtype: jnp.dtype=jnp.float32) -> jnp.ndarray:
+
+def precompute_freqs_cis(dim: int, max_position_embedding: int, theta: float=10000.0, dtype: jnp.dtype=jnp.float32) -> jnp.ndarray:
     freqs = 1.0 / (theta ** (np.arange(0, dim, 2)[: (dim // 2)].astype(dtype) / dim))
-    t = np.arange(end)  # type: ignore
+    t = np.arange(max_position_embedding) # type: ignore
     freqs = np.outer(t, freqs).astype(dtype)  # type: ignore
     sin, cos = np.sin(freqs), np.cos(freqs)
     freqs_cis = np.complex64(cos + 1j * sin)
     return jnp.asarray(freqs_cis)
+
 
 def apply_rotary_emb(
     xq: jnp.ndarray,
@@ -426,50 +406,9 @@ def apply_rotary_emb(
 
     return xq_out.astype(dtype), xk_out.astype(dtype)
 
-PRNGKey = Any
-Shape = Tuple[int, ...]
-Dtype = Any  # this could be a real type?
-Array = Any
-PrecisionLike = Union[None, str, lax.Precision, Tuple[str, str],
-                      Tuple[lax.Precision, lax.Precision]]
 
-class LoRADense(nn.Dense):
-  """A LoRA based linear transformation applied over the last dimension of the input."""
-  lora_rank: int = 64
-  lora_alpha: int = 128
-  scaling = lora_alpha / lora_rank
-
-  @compact
-  def __call__(self, inputs: Array) -> Array:
-    """Applies a linear transformation to the inputs along the last dimension.
-
-    Args:
-      inputs: The nd-array to be transformed.
-
-    Returns:
-      The transformed input.
-    """
-    output = super().__call__(inputs)
-
-    input_feature = jnp.shape(inputs)[-1]
-    output_feature = self.features
-    lora_a = self.param('lora_A',
-                        self.kernel_init,
-                        (self.lora_rank, input_feature),
-                        self.param_dtype)
-    
-    lora_b = self.param('lora_B',
-                        self.bias_init,
-                        (output_feature, self.lora_rank),
-                        self.param_dtype)
-    
-    output, lora_a, lora_b = promote_dtype(output, lora_a, lora_b, dtype=self.dtype)
-    y = output + inputs @ lora_a.T @ lora_b.T * self.scaling
-    return y
-
-
-class FlaxMistralAttention(nn.Module):
-    config: MistralConfig
+class FlaxLLaMAAttention(nn.Module):
+    config: LLaMAConfig
     dtype: jnp.dtype=jnp.float32
     param_dtype: jnp.dtype=jnp.float32
     precision: Optional[Union[jax.lax.Precision, str]]=None
@@ -478,15 +417,9 @@ class FlaxMistralAttention(nn.Module):
         config = self.config
         self.embed_dim = config.hidden_size
         self.num_heads = config.num_attention_heads
-        self.num_key_value_heads = config.num_key_value_heads
-        self.num_key_value_groups = self.num_heads // self.num_key_value_heads
         self.head_dim = self.embed_dim // self.num_heads
-        self.enable_lora = config.enable_lora
-        self.lora_rank = config.lora_rank
-        self.lora_alpha = config.lora_alpha
-        dense = partial(LoRADense, lora_rank=self.lora_rank, lora_alpha=self.lora_alpha) if self.enable_lora else nn.Dense
 
-        self.wq = dense(
+        self.wq = nn.Dense(
             config.num_attention_heads*self.head_dim,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
@@ -494,23 +427,23 @@ class FlaxMistralAttention(nn.Module):
             kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
             precision=self.precision,
         )
-        self.wk = dense(
-            self.num_key_value_heads * self.head_dim,
+        self.wk = nn.Dense(
+            config.num_attention_heads*self.head_dim,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
             use_bias=False,
             kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
             precision=self.precision,
         )
-        self.wv = dense(
-            self.num_key_value_heads * self.head_dim,
+        self.wv = nn.Dense(
+            config.num_attention_heads*self.head_dim,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
             use_bias=False,
             kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
             precision=self.precision,
         )
-        self.wo = dense(
+        self.wo = nn.Dense(
             config.hidden_size,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
@@ -525,29 +458,16 @@ class FlaxMistralAttention(nn.Module):
 
         self.freqs_cis = precompute_freqs_cis(
             self.head_dim,
-            config.max_sequence_length * 2,
+            config.max_sequence_length,
+            theta=config.theta,
             dtype=self.dtype,
         )
 
-        self.jit_attn = flash_attention_implementation(
-            backend=jax.default_backend(),
-            causal=True,
-            softmax_scale=self.head_dim**-0.5,
-            block_size=512,
-        )
-
     def _split_heads(self, hidden_states):
-        return hidden_states.reshape(hidden_states.shape[:2] + (-1, self.head_dim))
+        return hidden_states.reshape(hidden_states.shape[:2] + (self.num_heads, self.head_dim))
 
     def _merge_heads(self, hidden_states):
         return hidden_states.reshape(hidden_states.shape[:2] + (self.embed_dim,))
-    
-    def _repeat_kv(self, hidden_states: jnp.ndarray, n_rep: int):
-        batch, slen, num_key_value_heads, head_dim = hidden_states.shape
-        if n_rep == 1:
-            return hidden_states
-        hidden_states = jnp.broadcast_to(jnp.expand_dims(hidden_states, axis=3), (batch, slen, num_key_value_heads, n_rep, head_dim))
-        return hidden_states.reshape(batch, slen, num_key_value_heads * n_rep, head_dim)
 
     @nn.compact
     def _concatenate_to_cache(self, key, value, query, attention_mask):
@@ -562,7 +482,7 @@ class FlaxMistralAttention(nn.Module):
             # update key, value caches with our new 1d spatial slices
             cur_index = cache_index.value
             if query.shape[1] == 1:
-                mesh = MistralConfig.get_jax_mesh(self.config.mesh_dim)
+                mesh = LLaMAConfig.get_jax_mesh(self.config.mesh_dim)
                 def fn(cached_key, cached_value, key, value, cur_index):
                     assert key.shape[1] == 1 and value.shape[1] == 1, (key.shape, value.shape)
                     sp_size = max_length // mesh.shape['sp']
@@ -612,7 +532,6 @@ class FlaxMistralAttention(nn.Module):
         deterministic: bool = True,
         init_cache: bool = False,
         output_attentions: bool = False,
-        fcm_mask=None,
     ):
         xq, xk, xv = self.wq(hidden_states), self.wk(hidden_states), self.wv(hidden_states)
 
@@ -623,9 +542,9 @@ class FlaxMistralAttention(nn.Module):
         xk = with_sharding_constraint(xk, PS(("dp", "fsdp"), "sp", "tp"))
         xv = with_sharding_constraint(xv, PS(("dp", "fsdp"), "sp", "tp"))
 
-        xq = self._split_heads(xq) # B, seq_len, num_head, head_dim
-        xk = self._split_heads(xk) # B, seq_len, num_head, head_dim
-        xv = self._split_heads(xv) # B, seq_len, num_head, head_dim
+        xq = self._split_heads(xq)
+        xk = self._split_heads(xk)
+        xv = self._split_heads(xv)
 
         freqs_cis = jnp.take(self.freqs_cis, position_ids, axis=0)
 
@@ -652,10 +571,10 @@ class FlaxMistralAttention(nn.Module):
 
             platform = xla_bridge.get_backend().platform
             if platform == "tpu":
-                logger.info(f"Using fused attention for {platform}")
+                logging.info(f"Using fused attention for {platform}")
                 ring_attention_fn = ring_flash_attention_tpu
             else:
-                logger.info(f"Fused attention is not yet supported for {platform}, using non-fused version")
+                logging.info(f"Fused attention is not yet supported for {platform}, using non-fused version")
                 ring_attention_fn = ring_attention # uses BPT attention
             ring_attention_sharded = shard_map(
                 partial(
@@ -675,7 +594,7 @@ class FlaxMistralAttention(nn.Module):
                         prevent_cse=not self.config.scan_layers,
                     )
                 ),
-                mesh=MistralConfig.get_jax_mesh(self.config.mesh_dim),
+                mesh=LLaMAConfig.get_jax_mesh(self.config.mesh_dim),
                 in_specs=(
                     PS(("dp", "fsdp"), "sp", "tp", None),
                     PS(("dp", "fsdp"), "sp", "tp", None),
@@ -686,52 +605,8 @@ class FlaxMistralAttention(nn.Module):
                 out_specs=PS(("dp", "fsdp"), "sp", "tp", None),
                 check_rep=False
             )
-
-            xk = self._repeat_kv(xk, self.num_key_value_groups)
-            xv = self._repeat_kv(xv, self.num_key_value_groups)
-
             attn_output = ring_attention_sharded(xq, xk, xv, attention_bias, segment_ids)
             attn_output = with_sharding_constraint(attn_output, PS(("dp", "fsdp"), "sp", "tp", None))
-        elif self.config.flash_attention and not (self.has_variable("cache", "cached_key") or init_cache):
-            query_length, key_length = xq.shape[1], xk.shape[1]
-
-            batch_size = hidden_states.shape[0]
-
-            mesh = thread_resources.env.physical_mesh
-
-            batch_axis_names = mesh.axis_names[:-1] if mesh.axis_names else None
-            # We also assume that the last axis is for tensor-parallelism.
-            tensor_parallel_axis_name = mesh.axis_names[-1] if mesh.axis_names else None
-
-            partitioned_mha = shard_map(
-                self.jit_attn,
-                mesh=mesh,
-                in_specs=(
-                    # QKV [batch_size, seq_len, num_heads, per_head_dim].
-                    PS(batch_axis_names, None, tensor_parallel_axis_name, None),
-                    PS(batch_axis_names, None, tensor_parallel_axis_name, None),
-                    PS(batch_axis_names, None, tensor_parallel_axis_name, None),
-                    PS(None, None, None, None)
-                ),
-                # O [batch_size, seq_len, num_heads, per_head_dim].
-                out_specs=PS(batch_axis_names, None, tensor_parallel_axis_name, None),
-                # Disables a checking pass which jax can't apply when there's a triton | pallas
-                # call in the body.
-                check_rep=False,
-            )
-            xk = self._repeat_kv(xk, self.num_key_value_groups)
-            xv = self._repeat_kv(xv, self.num_key_value_groups)
-
-            attn_output = partitioned_mha(
-                xq,
-                xk,
-                xv,
-                None
-            )
-            attn_output = self._merge_heads(attn_output)
-            attn_output = self.wo(attn_output)
-            attn_output = self.resid_dropout(attn_output, deterministic=deterministic)
-            return (attn_output,)
         else:
             query_length, key_length = xq.shape[1], xk.shape[1]
 
@@ -760,7 +635,7 @@ class FlaxMistralAttention(nn.Module):
             q_sp_dim = None if xq.shape[1] == 1 else 'sp'
             attn_weights = None
             ring_attention_sharded = shard_map(
-                partial(ring_attention_standard, axis_name="sp"), mesh=MistralConfig.get_jax_mesh(self.config.mesh_dim),
+                partial(ring_attention_standard, axis_name="sp"), mesh=LLaMAConfig.get_jax_mesh(self.config.mesh_dim),
                 in_specs=(
                     PS(("dp", "fsdp"), q_sp_dim, "tp", None),
                     PS(("dp", "fsdp"), "sp", "tp", None),
@@ -770,9 +645,6 @@ class FlaxMistralAttention(nn.Module):
                 out_specs=PS(("dp", "fsdp"), q_sp_dim, "tp", None),
                 check_rep=False
             )
-            xk = self._repeat_kv(xk, self.num_key_value_groups)
-            xv = self._repeat_kv(xv, self.num_key_value_groups)
-
             attn_output = ring_attention_sharded(
                 xq, xk, xv, attention_mask
             )
@@ -784,20 +656,16 @@ class FlaxMistralAttention(nn.Module):
         return outputs
 
 
-class FlaxMistralMLP(nn.Module):
-    config: MistralConfig
+class FlaxLLaMAMLP(nn.Module):
+    config: LLaMAConfig
     dtype: jnp.dtype=jnp.float32
     param_dtype: jnp.dtype=jnp.float32
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self) -> None:
         config = self.config
-        self.enable_lora = config.enable_lora
-        self.lora_rank = config.lora_rank
-        self.lora_alpha = config.lora_alpha
-        dense = partial(LoRADense, lora_rank=self.lora_rank, lora_alpha=self.lora_alpha) if self.enable_lora else nn.Dense
 
-        self.w1 = dense(
+        self.w1 = nn.Dense(
             config.intermediate_size,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
@@ -805,7 +673,7 @@ class FlaxMistralMLP(nn.Module):
             kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
             precision=self.precision,
         )
-        self.w2 = dense(
+        self.w2 = nn.Dense(
             config.hidden_size,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
@@ -813,7 +681,7 @@ class FlaxMistralMLP(nn.Module):
             kernel_init=jax.nn.initializers.normal(self.config.initializer_range),
             precision=self.precision,
         )
-        self.w3 = dense(
+        self.w3 = nn.Dense(
             config.intermediate_size,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
@@ -829,26 +697,26 @@ class FlaxMistralMLP(nn.Module):
         return x
 
 
-class FlaxMistralBlock(nn.Module):
-    config: MistralConfig
+class FlaxLLaMABlock(nn.Module):
+    config: LLaMAConfig
     dtype: jnp.dtype=jnp.float32
     param_dtype: jnp.dtype=jnp.float32
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self) -> None:
-        attention_module = FlaxMistralAttention
-        mlp_module = FlaxMistralMLP
+        attention_module = FlaxLLaMAAttention
+        mlp_module = FlaxLLaMAMLP
         if self.config.remat_attention != '':
             attention_module = remat(
-                FlaxMistralAttention, static_argnums=(4, 5, 6),
+                FlaxLLaMAAttention, static_argnums=(4, 5, 6),
                 policy=get_gradient_checkpoint_policy(self.config.remat_attention),
-                prevent_cse=True,
+                prevent_cse=not self.config.scan_layers,
             )
         if self.config.remat_mlp != '':
             mlp_module = remat(
-                FlaxMistralMLP, static_argnums=(1,),
+                FlaxLLaMAMLP, static_argnums=(1,),
                 policy=get_gradient_checkpoint_policy(self.config.remat_mlp),
-                prevent_cse=True,
+                prevent_cse=not self.config.scan_layers,
             )
 
         self.attention = attention_module(
@@ -880,27 +748,27 @@ class FlaxMistralBlock(nn.Module):
         self,
         hidden_states,
         attention_mask=None,
+        segment_ids=None,
         position_ids=None,
         deterministic: bool = True,
         init_cache: bool = False,
         output_attentions: bool = False,
-        fcm_mask: Optional[jnp.ndarray] = None,
     ):
         attn_outputs = self.attention(
             self.attention_norm(hidden_states),
             attention_mask,
+            segment_ids,
             position_ids,
             deterministic,
             init_cache,
             output_attentions,
-            fcm_mask,
         )
         attn_output = attn_outputs[0]
         hidden_states = hidden_states + attn_output
 
         feed_forward_input = self.ffn_norm(hidden_states)
 
-        if self.config.scan_mlp:
+        if self.config.scan_mlp and hidden_states.shape[1] >= self.config.scan_mlp_chunk_size:
             feed_forward_hidden_states = blockwise_ffn(
                 self.feed_forward,
                 feed_forward_input,
@@ -912,7 +780,7 @@ class FlaxMistralBlock(nn.Module):
                 feed_forward_input,
                 deterministic,
             )
-        feed_forward_hidden_states = with_sharding_constraint(feed_forward_hidden_states, PS(("dp", "fsdp"), None, "mp"))
+        feed_forward_hidden_states = with_sharding_constraint(feed_forward_hidden_states, PS(("dp", "fsdp"), None, "tp"))
 
         hidden_states = hidden_states + feed_forward_hidden_states
 
@@ -922,19 +790,19 @@ class FlaxMistralBlock(nn.Module):
         return outputs
 
 
-class FlaxMistralPreTrainedModel(FlaxPreTrainedModel):
+class FlaxLLaMAPreTrainedModel(FlaxPreTrainedModel):
     """
     An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
     models.
     """
 
-    config_class = MistralConfig
+    config_class = LLaMAConfig
     base_model_prefix = "transformer"
     module_class: nn.Module = None
 
     def __init__(
         self,
-        config: MistralConfig,
+        config: LLaMAConfig,
         input_shape: Tuple = (1, 1),
         seed: int = 0,
         dtype: jnp.dtype = jnp.float32,
@@ -944,7 +812,7 @@ class FlaxMistralPreTrainedModel(FlaxPreTrainedModel):
         module = self.module_class(config=config, dtype=dtype, **kwargs)
         super().__init__(config, module, input_shape=input_shape, seed=seed, dtype=dtype, _do_init=_do_init)
 
-    def init_weights(self, rng: jax.random.PRNGKey, input_shape: Tuple, params: dict = None) -> dict:
+    def init_weights(self, rng: jax.random.PRNGKey, input_shape: Tuple, params: FrozenDict = None) -> FrozenDict:
         # init input tensors
         input_ids = jnp.zeros(input_shape, dtype="i4")
         attention_mask = jnp.ones_like(input_ids)
@@ -972,12 +840,12 @@ class FlaxMistralPreTrainedModel(FlaxPreTrainedModel):
         random_params = module_init_outputs["params"]
 
         if params is not None:
-            random_params = flatten_dict(random_params)
-            params = flatten_dict(params)
+            random_params = flatten_dict(unfreeze(random_params))
+            params = flatten_dict(unfreeze(params))
             for missing_key in self._missing_keys:
                 params[missing_key] = random_params[missing_key]
             self._missing_keys = set()
-            return unflatten_dict(params)
+            return freeze(unflatten_dict(params))
         else:
             return random_params
 
@@ -999,7 +867,7 @@ class FlaxMistralPreTrainedModel(FlaxPreTrainedModel):
         init_variables = self.module.init(
             jax.random.PRNGKey(0), input_ids, attention_mask, segment_ids, position_ids, return_dict=False, init_cache=True
         )
-        return init_variables["cache"]
+        return init_variables["cache"].unfreeze()
 
     @add_start_docstrings_to_model_forward("")
     def __call__(
@@ -1029,11 +897,11 @@ class FlaxMistralPreTrainedModel(FlaxPreTrainedModel):
                 raise ValueError("Make sure to provide `position_ids` when passing `past_key_values`.")
 
             position_ids = jnp.broadcast_to(jnp.arange(sequence_length)[None, :], (batch_size, sequence_length))
-        if segment_ids is None:
-            segment_ids = jnp.zeros((batch_size, sequence_length))
 
         if attention_mask is None:
             attention_mask = jnp.ones((batch_size, sequence_length))
+        if segment_ids is None:
+            segment_ids = jnp.zeros((batch_size, sequence_length))
 
         # Handle any PRNG if needed
         rngs = {}
@@ -1042,7 +910,6 @@ class FlaxMistralPreTrainedModel(FlaxPreTrainedModel):
 
         inputs = {"params": params or self.params}
 
-        # if past_key_values are passed then cache is already initialized a private flag init_cache has to be passed down to ensure cache is used. It has to be made sure that cache is marked as mutable so that it can be changed by FlaxGPTJAttention module
         if past_key_values:
             inputs["cache"] = past_key_values
             mutable = ["cache"]
@@ -1067,37 +934,20 @@ class FlaxMistralPreTrainedModel(FlaxPreTrainedModel):
         # add updated cache to model output
         if past_key_values is not None and return_dict:
             outputs, past_key_values = outputs
-            outputs["past_key_values"] = past_key_values["cache"]
+            outputs["past_key_values"] = unfreeze(past_key_values["cache"])
             return outputs
         elif past_key_values is not None and not return_dict:
             outputs, past_key_values = outputs
-            outputs = outputs[:1] + (past_key_values["cache"],) + outputs[1:]
+            outputs = outputs[:1] + (unfreeze(past_key_values["cache"]),) + outputs[1:]
 
         return outputs
 
 
-class FlaxMistralBlockCollection(nn.Module):
-    config: MistralConfig
+class FlaxLLaMABlockCollection(nn.Module):
+    config: LLaMAConfig
     dtype: jnp.dtype = jnp.float32
     param_dtype: jnp.dtype=jnp.float32
     precision: Optional[Union[jax.lax.Precision, str]]=None
-
-    def setup(self):
-        block = FlaxMistralBlock
-        if self.config.remat_block != '':
-            block = remat(
-                FlaxMistralBlock, static_argnums=(3, 4, 5),
-                policy=get_gradient_checkpoint_policy(self.config.remat_block)
-            )
-        self.blocks = [
-            block(
-                self.config,
-                name=str(i),
-                dtype=self.dtype,
-                param_dtype=self.param_dtype,
-                precision=self.precision
-            ) for i in range(self.config.num_hidden_layers)
-        ]
 
     @nn.compact
     def __call__(
@@ -1115,10 +965,10 @@ class FlaxMistralBlockCollection(nn.Module):
         all_attentions = () if output_attentions else None
         all_hidden_states = () if output_hidden_states else None
 
-        block = FlaxMistralBlock
+        block = FlaxLLaMABlock
         if self.config.remat_block != '':
             block = remat(
-                FlaxMistralBlock, static_argnums=(4, 5, 6),
+                FlaxLLaMABlock, static_argnums=(4, 5, 6),
                 prevent_cse=not self.config.scan_layers,
                 policy=get_gradient_checkpoint_policy(self.config.remat_block)
             )
@@ -1183,8 +1033,8 @@ class FlaxMistralBlockCollection(nn.Module):
         return outputs
 
 
-class FlaxMistralModule(nn.Module):
-    config: MistralConfig
+class FlaxLLaMAModule(nn.Module):
+    config: LLaMAConfig
     dtype: jnp.dtype = jnp.float32
     param_dtype: jnp.dtype=jnp.float32
     precision: Optional[Union[jax.lax.Precision, str]]=None
@@ -1200,7 +1050,7 @@ class FlaxMistralModule(nn.Module):
             param_dtype=self.param_dtype,
         )
         self.dropout = nn.Dropout(rate=self.config.embd_pdrop)
-        self.h = FlaxMistralBlockCollection(self.config, dtype=self.dtype, param_dtype=self.param_dtype, precision=self.precision)
+        self.h = FlaxLLaMABlockCollection(self.config, dtype=self.dtype, param_dtype=self.param_dtype, precision=self.precision)
         self.ln_f = RMSNorm(self.config.hidden_size, eps=self.config.rms_norm_eps, dtype=self.dtype, param_dtype=self.param_dtype)
 
     def __call__(
@@ -1250,25 +1100,17 @@ class FlaxMistralModule(nn.Module):
         )
 
 @add_start_docstrings("", "")
-class FlaxMistralModel(FlaxMistralPreTrainedModel):
-    module_class = FlaxMistralModule
+class FlaxLLaMAModel(FlaxLLaMAPreTrainedModel):
+    module_class = FlaxLLaMAModule
 
-# append_call_sample_docstring(
-#     FlaxMistralModel,
-#     _TOKENIZER_FOR_DOC,
-#     _CHECKPOINT_FOR_DOC,
-#     FlaxCausalLMOutput,
-#     _CONFIG_FOR_DOC,
-# )
-
-class FlaxMistralForCausalLMModule(nn.Module):
-    config: MistralConfig
+class FlaxLLaMAForCausalLMModule(nn.Module):
+    config: LLaMAConfig
     dtype: jnp.dtype = jnp.float32
     param_dtype: jnp.dtype=jnp.float32
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self):
-        self.transformer = FlaxMistralModule(self.config, dtype=self.dtype)
+        self.transformer = FlaxLLaMAModule(self.config, dtype=self.dtype)
         self.lm_head = nn.Dense(
             self.config.vocab_size,
             dtype=self.dtype,
@@ -1327,17 +1169,17 @@ class FlaxMistralForCausalLMModule(nn.Module):
 
 
 @add_start_docstrings("", "")
-class FlaxMistralForCausalLM(FlaxMistralPreTrainedModel):
-    module_class = FlaxMistralForCausalLMModule
+class FlaxLLaMAForCausalLM(FlaxLLaMAPreTrainedModel):
+    module_class = FlaxLLaMAForCausalLMModule
 
-    def prepare_inputs_for_generation(self, input_ids, max_length, attention_mask: Optional[jax.Array] = None):
+    def prepare_inputs_for_generation(
+        self, input_ids, max_length,
+        attention_mask: Optional[jax.Array] = None,
+    ):
         # initializing the cache
         batch_size, seq_length = input_ids.shape
 
         past_key_values = self.init_cache(batch_size, max_length)
-        # Note that usually one would have to put 0's in the attention_mask for x > input_ids.shape[-1] and x < cache_length.
-        # But since GPTJ uses a causal mask, those positions are masked anyways.
-        # Thus we can create a single static attention_mask here, which is more efficient for compilation
         extended_attention_mask = jnp.ones((batch_size, max_length), dtype="i4")
         if attention_mask is not None:
             position_ids = attention_mask.cumsum(axis=-1) - 1
@@ -1356,24 +1198,15 @@ class FlaxMistralForCausalLM(FlaxMistralPreTrainedModel):
         model_kwargs["position_ids"] = model_kwargs["position_ids"][:, -1:] + 1
         return model_kwargs
 
-# append_call_sample_docstring(
-#     FlaxGPTJForCausalLM,
-#     _TOKENIZER_FOR_DOC,
-#     _CHECKPOINT_FOR_DOC,
-#     FlaxCausalLMOutput,
-#     _CONFIG_FOR_DOC,
-# )
-
-
 
 VOCAB_FILES_NAMES = {"vocab_file": "tokenizer.model"}
 
 PRETRAINED_VOCAB_FILES_MAP = {}
 
 
-class MistralTokenizer(PreTrainedTokenizer):
+class LLaMATokenizer(PreTrainedTokenizer):
     """
-    Construct a Mistral tokenizer. Based on byte-level Byte-Pair-Encoding.
+    Construct a LLaMA tokenizer. Based on byte-level Byte-Pair-Encoding.
     Args:
         vocab_file (`str`):
             Path to the vocabulary file.

@@ -5,18 +5,17 @@ export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
     # --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
 WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mistral_train \
     --total_steps=128000 \
-    --mesh_dim='1,1,1,1'\
-    --log_freq=10 \
+    --mesh_dim='1,1,1'\
+    --log_freq=128 \
     --save_model_freq=2048 \
     --load_mistral_config='debug' \
-    --update_mistral_config="dict(max_sequence_length=8192,scan_attention=True,scan_query_chunk_size=2048,scan_key_chunk_size=4096,remat_attention='nothing_saveable',scan_mlp=True,scan_mlp_chunk_size=2048,remat_mlp='nothing_saveable',remat_block='nothing_saveable',scan_layers=True,attention_type='blockwise',param_scan_axis=0,mesh_dim='1,1,1,1')" \
     --tokenizer.vocab_file='./inputs/mistral_tokenizer.model' \
     --mistral.max_sequence_length=8192 \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.text_processor.tag="language" \
     --train_dataset.type=json \
     --train_dataset.json_dataset.path='/home/hxssgaa/Developer/tpuhandle/EasyLM/inputs/mix_out.jsonl' \
-    --train_dataset.json_dataset.batch_size=1 \
+    --train_dataset.json_dataset.batch_size=2 \
     --train_dataset.json_dataset.tokenizer_processes=16 \
     --train_dataset.json_dataset.seq_length=8192 \
     --logger.output_dir='./mistral_debug_output' \

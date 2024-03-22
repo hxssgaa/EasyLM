@@ -1,74 +1,84 @@
 import pprint
+import os
 from functools import partial
 
 from tqdm import tqdm, trange
 import numpy as np
-import mlxu
+from absl.app import run
+import absl.logging as logging
+import tux
 
 import jax
 import jax.numpy as jnp
-import pickle as pkl
-from jax._src.pjit import pjit
+from jax.experimental.pjit import pjit
 from jax.sharding import PartitionSpec as PS
 from flax.training.train_state import TrainState
 
-from EasyLM.data import DatasetFactory, _metadata
-from EasyLM.checkpoint import StreamingCheckpointer
-from EasyLM.optimizers import OptimizerFactory
-from EasyLM.jax_utils import (
+from bpt.data import DatasetFactory
+from tux import (
     JaxRNG, JaxDistributedConfig, next_rng, match_partition_rules,
     cross_entropy_loss_and_accuracy, global_norm, get_float_dtype_by_name,
-    set_random_seed, average_metrics, get_weight_decay_mask,
-    make_shard_and_gather_fns, with_sharding_constraint,
+    set_random_seed, average_metrics, get_mask,
+    make_shard_and_gather_fns, with_sharding_constraint, define_flags_with_default,
+    OptimizerFactory, StreamingCheckpointer
 )
-from EasyLM.models.mistral.mistral_model import (
-    MistralConfig, FlaxMistralForCausalLMModule
-)
+from bpt.llama import LLaMAConfig, FlaxLLaMAForCausalLMModule
 
-FLAGS, FLAGS_DEF = mlxu.define_flags_with_default(
+
+FLAGS, FLAGS_DEF = define_flags_with_default(
     seed=42,
     mesh_dim='1,-1,1,1',
     dtype='fp32',
     total_steps=10000,
-    load_mistral_config='',
-    update_mistral_config='',
+    load_llama_config='',
+    update_llama_config='',
     load_checkpoint='',
     load_dataset_state='',
     log_freq=50,
     save_model_freq=0,
     save_milestone_freq=0,
-    best_metric='',
-    save_best=False,
     eval_steps=0,
-    tokenizer=MistralConfig.get_tokenizer_config(),
+    tokenizer=LLaMAConfig.get_tokenizer_config(),
     train_dataset=DatasetFactory.get_default_config(),
     eval_dataset=DatasetFactory.get_default_config(),
     optimizer=OptimizerFactory.get_default_config(),
     checkpointer=StreamingCheckpointer.get_default_config(),
-    mistral=MistralConfig.get_default_config(),
-    logger=mlxu.WandBLogger.get_default_config(),
+    llama=LLaMAConfig.get_default_config(),
+    logger=tux.WandBLogger.get_default_config(),
     log_all_worker=False,
     jax_distributed=JaxDistributedConfig.get_default_config(),
+    autoresume=False,
 )
 
 
 def main(argv):
     JaxDistributedConfig.initialize(FLAGS.jax_distributed)
-    variant = mlxu.get_user_flags(FLAGS, FLAGS_DEF)
-    flags_config_dict = mlxu.user_flags_to_config_dict(FLAGS, FLAGS_DEF)
-    logger = mlxu.WandBLogger(
+    variant = tux.get_user_flags(FLAGS, FLAGS_DEF)
+    flags_config_dict = tux.user_flags_to_config_dict(FLAGS, FLAGS_DEF)
+    logger = tux.WandBLogger(
         config=FLAGS.logger,
         variant=variant,
         enable=FLAGS.log_all_worker or (jax.process_index() == 0),
     )
     set_random_seed(FLAGS.seed)
 
-    config_cls = MistralConfig
+    if jax.process_index() == 0:
+        output_dir = logger.output_dir
+    else:
+        output_dir = os.path.join(logger.output_dir, logger.experiment_id)
 
-    tokenizer = MistralConfig.get_tokenizer(FLAGS.tokenizer)
+    config_cls = LLaMAConfig
+    llama_cls = FlaxLLaMAForCausalLMModule
+    mesh = config_cls.get_jax_mesh(FLAGS.mesh_dim)
+
+    tokenizer = config_cls.get_tokenizer(FLAGS.tokenizer)
     dataset = DatasetFactory.load_dataset(FLAGS.train_dataset, tokenizer)
-    if FLAGS.load_dataset_state != '':
-        dataset.load_state_dict(mlxu.load_pickle(FLAGS.load_dataset_state))
+    if FLAGS.autoresume and tux.check_exists(output_dir):
+        logging.info('Found existing output. Resuming dataset from latest checkpoint...')
+        resume_path = f"{output_dir}/dataset.pkl"
+        dataset.load_state_dict(tux.load_pickle(resume_path))
+    elif FLAGS.load_dataset_state != '':
+        dataset.load_state_dict(tux.load_pickle(FLAGS.load_dataset_state))
 
     if FLAGS.eval_steps > 0:
         eval_dataset = DatasetFactory.load_dataset(
@@ -78,10 +88,10 @@ def main(argv):
 
     seq_length = dataset.seq_length
 
-    if FLAGS.load_mistral_config != '':
-        mistral_config = MistralConfig.load_config(FLAGS.load_mistral_config)
-        updates = config_cls(**FLAGS.mistral)
-        mistral_config.update(dict(
+    if FLAGS.load_llama_config != '':
+        llama_config = config_cls.load_config(FLAGS.load_llama_config)
+        updates = config_cls(**FLAGS.llama)
+        llama_config.update(dict(
             remat_block=updates.remat_block,
             remat_attention=updates.remat_attention,
             remat_mlp=updates.remat_mlp,
@@ -94,25 +104,27 @@ def main(argv):
             param_scan_axis=updates.param_scan_axis,
         ))
     else:
-        mistral_config = MistralConfig(**FLAGS.mistral)
+        llama_config = config_cls(**FLAGS.llama)
 
-    if FLAGS.update_mistral_config != '':
-        mistral_config.update(dict(eval(FLAGS.update_mistral_config)))
+    if FLAGS.update_llama_config != '':
+        llama_config.update(dict(eval(FLAGS.update_llama_config)))
 
-    mistral_config.update(dict(
+    llama_config.update(dict(
         bos_token_id=dataset.tokenizer.bos_token_id,
         eos_token_id=dataset.tokenizer.eos_token_id,
     ))
-    if mistral_config.vocab_size < dataset.vocab_size:
-        mistral_config.update(dict(vocab_size=dataset.vocab_size))
+    if llama_config.vocab_size < dataset.vocab_size:
+        llama_config.update(dict(vocab_size=dataset.vocab_size))
+    llama_config.update(dict(mesh_dim=FLAGS.mesh_dim))
 
-    model = FlaxMistralForCausalLMModule(
-        mistral_config, dtype=get_float_dtype_by_name(FLAGS.dtype)
+    model = llama_cls(
+        llama_config, dtype=get_float_dtype_by_name(FLAGS.dtype)
     )
 
     optimizer, optimizer_info = OptimizerFactory.get_optimizer(
         FLAGS.optimizer,
-        get_weight_decay_mask(MistralConfig.get_weight_decay_exclusions())
+        get_mask(config_cls.get_weight_decay_exclusions()),
+        None,
     )
 
     def create_trainstate_from_params(params):
@@ -120,14 +132,13 @@ def main(argv):
 
     def init_fn(rng):
         rng_generator = JaxRNG(rng)
+        batch = 512
         params = model.init(
-            input_ids=jnp.zeros((32, seq_length), dtype=jnp.int32),
-            position_ids=jnp.zeros((32, seq_length), dtype=jnp.int32),
-            attention_mask=jnp.ones((32, seq_length), dtype=jnp.int32),
-            rngs=rng_generator(mistral_config.rng_keys())
+            input_ids=jnp.zeros((batch, seq_length), dtype=jnp.int32),
+            position_ids=jnp.zeros((batch, seq_length), dtype=jnp.int32),
+            attention_mask=jnp.ones((batch, seq_length), dtype=jnp.int32),
+            rngs=rng_generator(llama_config.rng_keys()),
         )
-        if not isinstance(params, dict):
-            params = params.unfreeze()
         return TrainState.create(params=params, tx=optimizer, apply_fn=None)
 
     def train_step(train_state, rng, batch):
@@ -135,47 +146,52 @@ def main(argv):
         batch = with_sharding_constraint(batch, PS(('dp', 'fsdp'), 'sp'))
         def loss_and_accuracy(params):
             logits = model.apply(
-                params, batch['input_tokens'], deterministic=False,
-                rngs=rng_generator(mistral_config.rng_keys()),
+                params,
+                batch['input_tokens'],
+                deterministic=False,
+                rngs=rng_generator(llama_config.rng_keys()),
             ).logits
-            return cross_entropy_loss_and_accuracy(
-                logits, batch['target_tokens'], batch['loss_masks'], batch['target_tags'], (_metadata.get_tag_index() - 1)
+            loss, acc = cross_entropy_loss_and_accuracy(
+                logits,
+                batch['target_tokens'],
+                batch['loss_masks']
             )
+            metrics = dict(acc=acc)
+            return loss, metrics
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
-        (loss, (accuracy, tags_loss)), grads = grad_fn(train_state.params)
+        (loss, loss_metrics), grads = grad_fn(train_state.params)
         train_state = train_state.apply_gradients(grads=grads)
         metrics = dict(
             loss=loss,
-            accuracy=accuracy,
             learning_rate=optimizer_info['learning_rate_schedule'](train_state.step),
-            gradient_norm=global_norm(grads),
             param_norm=global_norm(train_state.params),
+            gradient_norm=global_norm(grads),
+            **loss_metrics
         )
-        for i, l in enumerate(tags_loss):
-            metrics['loss_%s' % _metadata.get_reverse_tag_index_map()[i]] = l
         return train_state, rng_generator(), metrics
 
     def eval_step(train_state, rng, batch):
         rng_generator = JaxRNG(rng)
         batch = with_sharding_constraint(batch, PS(('dp', 'fsdp'), 'sp'))
         logits = model.apply(
-            train_state.params, batch['input_tokens'], deterministic=True,
-            rngs=rng_generator(mistral_config.rng_keys()),
+            train_state.params,
+            batch['input_tokens'],
+            deterministic=True,
+            rngs=rng_generator(llama_config.rng_keys()),
         ).logits
-        loss, (accuracy, tags_loss) = cross_entropy_loss_and_accuracy(
-            logits, batch['target_tokens'], batch['loss_masks'], batch['target_tags'], (_metadata.get_tag_index() - 1)
+        loss, acc = cross_entropy_loss_and_accuracy(
+            logits,
+            batch['target_tokens'],
+            batch['loss_masks']
         )
         metrics = dict(
             eval_loss=loss,
-            eval_accuracy=accuracy,
+            eval_acc=acc,
         )
-        for i, l in enumerate(tags_loss):
-            metrics['eval_loss_%s' % _metadata.get_reverse_tag_index_map()[i]] = l
-        return rng_generator(), metrics
 
     train_state_shapes = jax.eval_shape(init_fn, next_rng())
     train_state_partition = match_partition_rules(
-        MistralConfig.get_partition_rules(), train_state_shapes
+        config_cls.get_partition_rules(llama_config.scan_layers, llama_config.param_scan_axis), train_state_shapes
     )
 
     shard_fns, gather_fns = make_shard_and_gather_fns(
@@ -199,9 +215,10 @@ def main(argv):
         donate_argnums=(0, ),
     )
 
+    batch_spec = PS()
     sharded_train_step = pjit(
         train_step,
-        in_shardings=(train_state_partition, PS(), PS()),
+        in_shardings=(train_state_partition, PS(), batch_spec),
         out_shardings=(train_state_partition, PS(), PS()),
         donate_argnums=(0, 1),
     )
@@ -219,7 +236,7 @@ def main(argv):
             step=step,
             variant=variant,
             flags=flags_config_dict,
-            mistral_config=mistral_config.to_dict(),
+            llama_config=llama_config.to_dict(),
         )
         checkpointer.save_all(
             train_state=train_state,
@@ -229,17 +246,19 @@ def main(argv):
             milestone=milestone,
         )
 
-    mesh = MistralConfig.get_jax_mesh(FLAGS.mesh_dim)
     with mesh:
         train_state, restored_params = None, None
-        if FLAGS.load_checkpoint != '':
-            # Initialize from scratch first
-            init_train_state = sharded_init_fn(next_rng())
 
+        if FLAGS.autoresume and tux.check_exists(output_dir):
+            logging.info('Found existing output. Resuming model from latest checkpoint...')
+            resume_path = f"trainstate::{output_dir}/streaming_train_state"
             train_state, restored_params = checkpointer.load_trainstate_checkpoint(
-                FLAGS.load_checkpoint, train_state_shapes, shard_fns, init_train_state=init_train_state,
+                resume_path, train_state_shapes, shard_fns, max_buffer_size=32 * 2 ** 30
             )
-            del init_train_state
+        elif FLAGS.load_checkpoint != '':
+            train_state, restored_params = checkpointer.load_trainstate_checkpoint(
+                FLAGS.load_checkpoint, train_state_shapes, shard_fns, max_buffer_size=32 * 2 ** 30
+            )
 
         if train_state is None and restored_params is None:
             # Initialize from scratch
@@ -257,23 +276,21 @@ def main(argv):
         sharded_rng = next_rng()
 
         step_counter = trange(start_step, FLAGS.total_steps, ncols=0)
-
         for step, (batch, dataset_metrics) in zip(step_counter, dataset):
             train_state, sharded_rng, metrics = sharded_train_step(
                 train_state, sharded_rng, batch
             )
             if step % FLAGS.log_freq == 0:
                 if FLAGS.eval_steps > 0:
-                    eval_iterator = iter(eval_dataset)
                     eval_metric_list = []
                     for _ in range(FLAGS.eval_steps):
                         eval_batch, _ = next(eval_iterator)
                         sharded_rng, eval_metrics = sharded_eval_step(
                             train_state, sharded_rng, eval_batch
                         )
+                        eval_metrics = jax.device_get(eval_metrics)
                         eval_metric_list.append(eval_metrics)
-                    with jax.spmd_mode('allow_all'):
-                        metrics.update(average_metrics(eval_metric_list))
+                    metrics.update(average_metrics(eval_metric_list))
 
                 log_metrics = {"step": step}
                 log_metrics.update(metrics)
@@ -281,16 +298,15 @@ def main(argv):
                 log_metrics = jax.device_get(log_metrics)
                 logger.log(log_metrics)
                 tqdm.write("\n" + pprint.pformat(log_metrics) + "\n")
+
             if FLAGS.save_milestone_freq > 0 and (step + 1) % FLAGS.save_milestone_freq == 0:
-                tqdm.write('\ncheckpoint milestone %d saved:\n' % (step + 1))
                 save_checkpoint(train_state, milestone=True)
             elif FLAGS.save_model_freq > 0 and (step + 1) % FLAGS.save_model_freq == 0:
                 save_checkpoint(train_state)
-                tqdm.write('\ncheckpoint %d saved:\n' % (step + 1))
 
         if FLAGS.save_model_freq > 0:
             save_checkpoint(train_state)
 
 
 if __name__ == "__main__":
-    mlxu.run(main)
+    run(main)
