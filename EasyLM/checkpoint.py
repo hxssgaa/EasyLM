@@ -129,6 +129,7 @@ class StreamingCheckpointer(object):
                 #     tensor = new_embeddings
 
                 if shard_fns is not None:
+                    import pdb; pdb.set_trace()
                     tensor = shard_fns[key](tensor)
                 flattend_train_state[key] = tensor
 
