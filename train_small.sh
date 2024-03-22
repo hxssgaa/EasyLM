@@ -9,7 +9,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --log_freq=10 \
     --save_model_freq=2048 \
     --load_mistral_config='debug' \
-    --update_mistral_config="dict(max_sequence_length=8192,scan_attention=True,scan_query_chunk_size=2048,scan_key_chunk_size=4096,remat_attention='nothing_saveable',scan_mlp=True,scan_mlp_chunk_size=2048,remat_mlp='nothing_saveable',remat_block='nothing_saveable',scan_layers=True,attention_type='blockwise',param_scan_axis=0,mesh_dim='1,1,1,1')" \
+    --update_mistral_config="dict(max_sequence_length=8192,scan_attention=True,scan_query_chunk_size=2048,scan_key_chunk_size=4096,remat_attention='nothing_saveable',scan_mlp=True,scan_mlp_chunk_size=2048,remat_mlp='nothing_saveable',remat_block='nothing_saveable',scan_layers=False,attention_type='blockwise',param_scan_axis=0,mesh_dim='1,1,1,1')" \
     --tokenizer.vocab_file='./inputs/mistral_tokenizer.model' \
     --mistral.max_sequence_length=8192 \
     --train_dataset.text_processor.fields="text" \
