@@ -8,7 +8,7 @@ export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
 # --save_model_freq=512
 WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mistral_train \
     --total_steps=128000 \
-    --mesh_dim='1,1,4,16'\
+    --mesh_dim='1,1,1,64'\
     --dtype='bf16' \
     --log_freq=64 \
     --eval_steps=0 \
@@ -17,7 +17,7 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --save_best=True \
     --best_metric='eval_accuracy' \
     --load_mistral_config='7b' \
-    --update_mistral_config="dict(max_sequence_length=262144,scan_attention=True,scan_query_chunk_size=1024,scan_key_chunk_size=1024,remat_attention='nothing_saveable',scan_mlp=True,scan_mlp_chunk_size=1024,remat_mlp='nothing_saveable',remat_block='nothing_saveable',scan_layers=False,attention_type='ring_blockwise',param_scan_axis=0,mesh_dim='1,1,4,16')" \
+    --update_mistral_config="dict(max_sequence_length=262144,scan_attention=True,scan_query_chunk_size=1024,scan_key_chunk_size=1024,remat_attention='nothing_saveable',scan_mlp=True,scan_mlp_chunk_size=1024,remat_mlp='nothing_saveable',remat_block='nothing_saveable',scan_layers=False,attention_type='ring_blockwise',param_scan_axis=0,mesh_dim='1,1,1,64')" \
     --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.text_processor.tag="language" \
