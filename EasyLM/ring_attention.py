@@ -19,7 +19,7 @@ from typing import Any, NamedTuple
 
 def _ring_attention_fwd(q, k, v, attn_bias, segment_ids, axis_name, float32_logits, blockwise_kwargs):
     if float32_logits:
-        q, k = q.astype(jnp.float32), k.astype(jnp.float32)
+        q, k = q.astype(jnp.bfloat16), k.astype(jnp.bfloat16)
     batch, q_len, num_heads, dim_per_head = q.shape
     batch, kv_len, num_heads, dim_per_head = k.shape
     numerator = jnp.zeros((batch, q_len, num_heads, dim_per_head)).astype(q.dtype)
@@ -80,7 +80,7 @@ ring_attention.defvjp(_ring_attention_fwd, _ring_attention_bwd)
 
 def _ring_attention_standard_fwd(q, k, v, attn_mask, axis_name, float32_logits):
     if float32_logits:
-        q, k = q.astype(jnp.float32), k.astype(jnp.float32)
+        q, k = q.astype(jnp.bfloat16), k.astype(jnp.bfloat16)
     batch, q_len, num_heads, _ = q.shape
     batch, kv_len, num_heads, dim_per_head = k.shape
     numerator = jnp.zeros((batch, q_len, num_heads, dim_per_head)).astype(q.dtype)
@@ -111,9 +111,9 @@ def _ring_attention_standard_bwd(axis_name, float32_logits, res, g):
     del float32_logits
     axis_size = lax.psum(1, axis_name)
     output, q, k, v, attn_mask, numerator, denominator, max_score = res
-    dq = jnp.zeros_like(q, dtype=jnp.float32)
-    dk = jnp.zeros_like(k, dtype=jnp.float32)
-    dv = jnp.zeros_like(v, dtype=jnp.float32)
+    dq = jnp.zeros_like(q, dtype=jnp.bfloat16)
+    dk = jnp.zeros_like(k, dtype=jnp.bfloat16)
+    dv = jnp.zeros_like(v, dtype=jnp.bfloat16)
     batch, kv_len, num_heads, dim_per_head = k.shape
     scale = jnp.sqrt(q.shape[-1])
     def scan_kv_block(carry, idx):
@@ -376,7 +376,7 @@ def _chunk_attention_bias(query_chunk_size, key_chunk_size,
 
 def _ring_flash_attention_fwd_tpu(q, k, v, attn_bias, segment_ids, axis_name, float32_logits, blockwise_kwargs):
     if float32_logits:
-        q, k = q.astype(jnp.float32), k.astype(jnp.float32)
+        q, k = q.astype(jnp.bfloat16), k.astype(jnp.bfloat16)
     q, k, v = map(lambda x: rearrange(x, 'b q h d -> b h q d'), [q, k, v])
     batch, num_heads, q_len, dim_per_head = q.shape
     batch, num_heads, kv_len, dim_per_head = k.shape
@@ -454,9 +454,9 @@ def _ring_flash_attention_bwd_tpu(axis_name, float32_logits, blockwise_kwargs, r
     o, q, k, v, attn_bias, segment_ids, l, m = res
     batch, num_heads, kv_len, dim_per_head = k.shape
     axis_size = lax.psum(1, axis_name)
-    dq = jnp.zeros_like(q, dtype=jnp.float32)
-    dk = jnp.zeros_like(k, dtype=jnp.float32)
-    dv = jnp.zeros_like(v, dtype=jnp.float32)
+    dq = jnp.zeros_like(q, dtype=jnp.bfloat16)
+    dk = jnp.zeros_like(k, dtype=jnp.bfloat16)
+    dv = jnp.zeros_like(v, dtype=jnp.bfloat16)
     query_chunk_size = blockwise_kwargs["query_chunk_size"]
     key_chunk_size = blockwise_kwargs["key_chunk_size"]
     q_block_size, kv_block_size = q.shape[2], k.shape[2] # assumes this function is pre-sharded inside shard_map
@@ -717,7 +717,7 @@ def _flash_attention_bwd(
         )
 
     di = jnp.sum(
-        o.astype(jnp.float32) * do.astype(jnp.float32), axis=-1
+        o.astype(jnp.bfloat16) * do.astype(jnp.bfloat16), axis=-1
     )  # [batch_size, num_heads, q_seq_len]
 
     dk, dv = _flash_attention_bwd_dkv(
@@ -864,7 +864,7 @@ def _flash_attention_kernel_single_batch(
             )  # [block_k, head_dim]
 
             s = jax.lax.dot_general(
-                q, k, TRANS_B_DIM_NUMBERS, preferred_element_type=jnp.float32
+                q, k, TRANS_B_DIM_NUMBERS, preferred_element_type=jnp.bfloat16
             )  # [block_q, block_k]
 
             # Add attention bias if needed.
@@ -872,7 +872,7 @@ def _flash_attention_kernel_single_batch(
                 ab = pl.load(
                     ab_tile_ref,
                     (batch_idx[0], pl.dslice(0, block_q), pl.dslice(start_k, block_k)),
-                ).astype(jnp.float32)
+                ).astype(jnp.bfloat16)
                 s += ab
 
             if sm_scale != 1.0:
@@ -941,7 +941,7 @@ def _flash_attention_kernel_single_batch(
                 v_tile_ref, (*batch_idx, pl.dslice(start_k, block_k), slice(None))
             )
             o_curr = jax.lax.dot(
-                p.astype(v.dtype), v, preferred_element_type=jnp.float32
+                p.astype(v.dtype), v, preferred_element_type=jnp.bfloat16
             )
             acc_scratch_ref[batch_idx] += o_curr * l_broadcast(l_next_inv_safe)
 
@@ -1054,7 +1054,7 @@ def _flash_attention_impl(
     out_specs = [pl.BlockSpec(o_index_map, (block_b, 1, block_q, head_dim))]
 
     if block_k != kv_seq_len:
-        scratch_shape = functools.partial(jax.ShapeDtypeStruct, dtype=jnp.float32)
+        scratch_shape = functools.partial(jax.ShapeDtypeStruct, dtype=jnp.bfloat16)
         m_scratch = scratch_shape((block_b, 1, block_q, MIN_BLOCK_SIZE))
         l_scratch = scratch_shape((block_b, 1, block_q, MIN_BLOCK_SIZE))
         acc_scratch = scratch_shape((block_b, 1, block_q, head_dim))
@@ -1076,10 +1076,10 @@ def _flash_attention_impl(
             pl.BlockSpec(lm_index_map, (block_b, 1, block_q, MIN_BLOCK_SIZE)),
         ]
         l = jax.ShapeDtypeStruct(
-            (batch_size, num_heads, q_seq_len, MIN_BLOCK_SIZE), dtype=jnp.float32
+            (batch_size, num_heads, q_seq_len, MIN_BLOCK_SIZE), dtype=jnp.bfloat16
         )
         m = jax.ShapeDtypeStruct(
-            (batch_size, num_heads, q_seq_len, MIN_BLOCK_SIZE), dtype=jnp.float32
+            (batch_size, num_heads, q_seq_len, MIN_BLOCK_SIZE), dtype=jnp.bfloat16
         )
         out_shape = (*out_shape, l, m)
 
@@ -1248,11 +1248,11 @@ def _flash_attention_dkv_kernel(
             di = pl.load(
                 di_tile_ref, (0, 0, pl.ds(start_q, block_q), slice(None))
             ).astype(
-                jnp.float32
+                jnp.bfloat16
             )  # [block_q, 128]
 
             capped_logits = lax.dot_general(
-                q, k, TRANS_B_DIM_NUMBERS, preferred_element_type=jnp.float32
+                q, k, TRANS_B_DIM_NUMBERS, preferred_element_type=jnp.bfloat16
             )  # [block_q_major, block_k]
 
             if ab_tile_ref is not None:
@@ -1263,7 +1263,7 @@ def _flash_attention_dkv_kernel(
                         pl.dslice(0, block_q),
                         pl.dslice(i * block_k, block_k),
                     ),
-                ).astype(jnp.float32)
+                ).astype(jnp.bfloat16)
                 capped_logits += ab
 
             if sm_scale != 1.0:
@@ -1308,7 +1308,7 @@ def _flash_attention_dkv_kernel(
             p = p * pltpu.repeat(
                 1 / l, block_k // MIN_BLOCK_SIZE, axis=1
             )  # [block_q_major, block_k_major]
-            dv = lax.dot(p.T.astype(do.dtype), do, preferred_element_type=jnp.float32)
+            dv = lax.dot(p.T.astype(do.dtype), do, preferred_element_type=jnp.bfloat16)
             pl.store(
                 dv_scratch_ref,
                 (pl.ds(start_k, block_k), slice(None)),
@@ -1320,7 +1320,7 @@ def _flash_attention_dkv_kernel(
             # do: [block_q, head_dim]
             # v: [block_k_major, head_dim]
             dp = lax.dot_general(
-                do, v, TRANS_B_DIM_NUMBERS, preferred_element_type=jnp.float32
+                do, v, TRANS_B_DIM_NUMBERS, preferred_element_type=jnp.bfloat16
             )
             ds = (dp - pltpu.repeat(di, block_k // MIN_BLOCK_SIZE, axis=1)) * p
 
@@ -1329,7 +1329,7 @@ def _flash_attention_dkv_kernel(
 
             # ds: [block_q_major, block_k_major]
             # q: [block_q_major, head_dim]
-            dk = lax.dot(ds.T.astype(do.dtype), q, preferred_element_type=jnp.float32)
+            dk = lax.dot(ds.T.astype(do.dtype), q, preferred_element_type=jnp.bfloat16)
             pl.store(
                 dk_scratch_ref,
                 (pl.ds(start_k, block_k), slice(None)),
@@ -1536,8 +1536,8 @@ def _flash_attention_bwd_dkv(
     out_shapes = [
         jax.ShapeDtypeStruct((batch_size, num_heads, kv_seq_len, head_dim), k.dtype),
         jax.ShapeDtypeStruct((batch_size, num_heads, kv_seq_len, head_dim), v.dtype),
-        jax.ShapeDtypeStruct((block_k_major, head_dim), jnp.float32),
-        jax.ShapeDtypeStruct((block_k_major, head_dim), jnp.float32),
+        jax.ShapeDtypeStruct((block_k_major, head_dim), jnp.bfloat16),
+        jax.ShapeDtypeStruct((block_k_major, head_dim), jnp.bfloat16),
     ]
 
     def dkv_index_map(batch_index, head_index, kv_seq_index, _, q_idx_ref, k_idx_ref):
@@ -1648,17 +1648,17 @@ def _flash_attention_dq_kernel(
         l = l_tile_ref[0, 0, :, :]  # [block_q_major, 128]
         m = m_tile_ref[0, 0, :, :]  # [block_q_major, 128]
         do = do_tile_ref[0, 0, :, :]  # [block_q_major, head_dim]
-        di = di_tile_ref[0, 0, :].astype(jnp.float32)  # [block_q_major, 128]
+        di = di_tile_ref[0, 0, :].astype(jnp.bfloat16)  # [block_q_major, 128]
 
         capped_logits = jax.lax.dot_general(
-            q, k, TRANS_B_DIM_NUMBERS, preferred_element_type=jnp.float32
+            q, k, TRANS_B_DIM_NUMBERS, preferred_element_type=jnp.bfloat16
         )
 
         if ab_tile_ref is not None:
             ab = pl.load(
                 ab_tile_ref,
                 (0, pl.dslice(0, block_q_major), pl.dslice(i * block_k, block_k)),
-            ).astype(jnp.float32)
+            ).astype(jnp.bfloat16)
             capped_logits += ab
 
         if sm_scale != 1.0:
@@ -1705,7 +1705,7 @@ def _flash_attention_dq_kernel(
             do,
             v,
             TRANS_B_DIM_NUMBERS,
-            preferred_element_type=jnp.float32,
+            preferred_element_type=jnp.bfloat16,
         )
         ds = (dp - pltpu.repeat(di, block_k // MIN_BLOCK_SIZE, axis=1)) * p
 
@@ -1724,7 +1724,7 @@ def _flash_attention_dq_kernel(
         dq_scratch_ref[:, :] += lax.dot(
             ds.astype(k.dtype),
             k,
-            preferred_element_type=jnp.float32,
+            preferred_element_type=jnp.bfloat16,
         ).astype(dq_scratch_ref.dtype)
 
     if causal:
@@ -1925,7 +1925,7 @@ def _flash_attention_bwd_dq(
 
     out_shapes = [
         jax.ShapeDtypeStruct(q.shape, q.dtype),
-        jax.ShapeDtypeStruct((block_q_major, head_dim), jnp.float32),
+        jax.ShapeDtypeStruct((block_q_major, head_dim), jnp.bfloat16),
         jax.ShapeDtypeStruct(ab.shape, ab.dtype) if ab is not None else None,
     ]
     dq_spec = pl.BlockSpec(qo_index_map, (1, 1, block_q_major, head_dim))
