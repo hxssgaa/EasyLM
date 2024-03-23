@@ -1152,15 +1152,7 @@ class FlaxMistralBlockCollection(nn.Module):
                     output_attentions,
                 )
         else:
-            blocks = [
-                block(
-                    self.config,
-                    name=str(i),
-                    dtype=self.dtype,
-                    param_dtype=self.param_dtype,
-                ) for i in range(self.config.num_hidden_layers)
-            ]
-            for block in blocks:
+            for block in self.blocks:
                 if output_hidden_states:
                     all_hidden_states += (hidden_states,)
 
