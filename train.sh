@@ -7,7 +7,7 @@ export WANDB_API_KEY='9f081bf8abc9f49dffeb68c6cf978320514ab4b5'
 #     --load_checkpoint='trainstate_params::gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/streaming_train_state' \
 WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mistral_train \
     --total_steps=128000 \
-    --mesh_dim='1,1,1,64'\
+    --mesh_dim='1,1,2,32'\
     --dtype='bf16' \
     --log_freq=512 \
     --eval_steps=0 \
