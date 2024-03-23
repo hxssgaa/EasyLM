@@ -374,8 +374,8 @@ logger = logging.get_logger(__name__)
 class RMSNorm(nn.Module):
     dim: int
     eps: float=1e-6
-    dtype: jnp.dtype=jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype=jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
 
     def setup(self) -> None:
         self.weight = self.param(
@@ -406,7 +406,7 @@ def apply_rotary_emb(
     xq: jnp.ndarray,
     xk: jnp.ndarray,
     freqs_cis: jnp.ndarray,
-    dtype: jnp.dtype=jnp.float32,
+    dtype: jnp.dtype=jnp.bfloat16,
 ) -> Tuple[jnp.ndarray, jnp.ndarray]:
 
     reshape_xq = xq.astype(jnp.float32).reshape(*xq.shape[:-1], -1, 2)
@@ -470,8 +470,8 @@ class LoRADense(nn.Dense):
 
 class FlaxMistralAttention(nn.Module):
     config: MistralConfig
-    dtype: jnp.dtype=jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype=jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self):
@@ -786,8 +786,8 @@ class FlaxMistralAttention(nn.Module):
 
 class FlaxMistralMLP(nn.Module):
     config: MistralConfig
-    dtype: jnp.dtype=jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype=jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self) -> None:
@@ -831,8 +831,8 @@ class FlaxMistralMLP(nn.Module):
 
 class FlaxMistralBlock(nn.Module):
     config: MistralConfig
-    dtype: jnp.dtype=jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype=jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self) -> None:
@@ -937,7 +937,7 @@ class FlaxMistralPreTrainedModel(FlaxPreTrainedModel):
         config: MistralConfig,
         input_shape: Tuple = (1, 1),
         seed: int = 0,
-        dtype: jnp.dtype = jnp.float32,
+        dtype: jnp.dtype = jnp.bfloat16,
         _do_init: bool = True,
         **kwargs,
     ):
@@ -1078,8 +1078,8 @@ class FlaxMistralPreTrainedModel(FlaxPreTrainedModel):
 
 class FlaxMistralBlockCollection(nn.Module):
     config: MistralConfig
-    dtype: jnp.dtype = jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype = jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self):
@@ -1175,8 +1175,8 @@ class FlaxMistralBlockCollection(nn.Module):
 
 class FlaxMistralModule(nn.Module):
     config: MistralConfig
-    dtype: jnp.dtype = jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype = jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self):
@@ -1253,8 +1253,8 @@ class FlaxMistralModel(FlaxMistralPreTrainedModel):
 
 class FlaxMistralForCausalLMModule(nn.Module):
     config: MistralConfig
-    dtype: jnp.dtype = jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    dtype: jnp.dtype = jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self):
