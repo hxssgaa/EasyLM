@@ -1139,7 +1139,7 @@ class FlaxMistralBlockCollection(nn.Module):
                     'params': True,
                     'dropout': True
                 },
-                in_axes=(nn.broadcast, nn.broadcast, nn.broadcast, nn.broadcast, nn.broadcast, nn.broadcast),
+                in_axes=(nn.broadcast, nn.broadcast, nn.broadcast, nn.broadcast, nn.broadcast),
                 length=self.config.num_hidden_layers,
                 metadata_params={nn.PARTITION_NAME: 'scan_decoder_layer'},
                 )(self.config, name='scan_decoder', dtype=self.dtype, param_dtype=self.param_dtype,)(
