@@ -23,14 +23,14 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --train_dataset.text_processor.tag="language" \
     --train_dataset.type=json \
     --train_dataset.json_dataset.path='gs://hxtpu_bucket/v3_sg_openhermes.slimpajama.train.instruct.jsonl' \
-    --train_dataset.json_dataset.batch_size=4 \
+    --train_dataset.json_dataset.batch_size=2 \
     --train_dataset.json_dataset.tokenizer_processes=16 \
     --train_dataset.json_dataset.seq_length=262144 \
     --eval_dataset.text_processor.tag="category" \
     --eval_dataset.type=json \
     --eval_dataset.text_processor_class='InstructSingleChoiceTextProcessor' \
     --eval_dataset.json_dataset.path='gs://hxtpu_bucket/sgeval_lite.jsonl' \
-    --eval_dataset.json_dataset.batch_size=4 \
+    --eval_dataset.json_dataset.batch_size=2 \
     --eval_dataset.json_dataset.enable_padding=True \
     --eval_dataset.json_dataset.tokenizer_processes=16 \
     --eval_dataset.json_dataset.seq_length=262144 \
