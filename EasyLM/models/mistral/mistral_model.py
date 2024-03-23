@@ -880,27 +880,27 @@ class FlaxMistralBlock(nn.Module):
         self,
         hidden_states,
         attention_mask=None,
+        segment_ids=None,
         position_ids=None,
-        deterministic: bool = True,
         init_cache: bool = False,
         output_attentions: bool = False,
-        fcm_mask: Optional[jnp.ndarray] = None,
     ):
+        deterministic = True
         attn_outputs = self.attention(
             self.attention_norm(hidden_states),
             attention_mask,
+            segment_ids,
             position_ids,
             deterministic,
             init_cache,
             output_attentions,
-            fcm_mask,
         )
         attn_output = attn_outputs[0]
         hidden_states = hidden_states + attn_output
 
         feed_forward_input = self.ffn_norm(hidden_states)
 
-        if self.config.scan_mlp:
+        if self.config.scan_mlp and hidden_states.shape[1] >= self.config.scan_mlp_chunk_size:
             feed_forward_hidden_states = blockwise_ffn(
                 self.feed_forward,
                 feed_forward_input,
@@ -1118,7 +1118,7 @@ class FlaxMistralBlockCollection(nn.Module):
         block = FlaxMistralBlock
         if self.config.remat_block != '':
             block = remat(
-                FlaxMistralBlock, static_argnums=(4, 5, 6),
+                FlaxMistralBlock, static_argnums=(4, 5),
                 prevent_cse=not self.config.scan_layers,
                 policy=get_gradient_checkpoint_policy(self.config.remat_block)
             )
@@ -1147,7 +1147,6 @@ class FlaxMistralBlockCollection(nn.Module):
                     attention_mask,
                     segment_ids,
                     position_ids,
-                    deterministic,
                     init_cache,
                     output_attentions,
                 )
@@ -1161,7 +1160,6 @@ class FlaxMistralBlockCollection(nn.Module):
                     attention_mask,
                     segment_ids,
                     position_ids,
-                    deterministic,
                     init_cache,
                     output_attentions,
                 )
