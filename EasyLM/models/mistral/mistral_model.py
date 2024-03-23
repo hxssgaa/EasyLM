@@ -661,7 +661,7 @@ class FlaxMistralAttention(nn.Module):
                 partial(
                     ring_attention_fn,
                     axis_name="sp",
-                    float32_logits=True,
+                    float32_logits=False,
                     blockwise_kwargs=dict(
                         deterministic=deterministic,
                         dropout_rng=dropout_rng,

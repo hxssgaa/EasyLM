@@ -10,27 +10,28 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --total_steps=128000 \
     --mesh_dim='1,1,4,16'\
     --dtype='bf16' \
-    --log_freq=512 \
+    --log_freq=64 \
     --eval_steps=0 \
     --save_model_freq=0 \
     --save_milestone_freq=10240 \
     --save_best=True \
     --best_metric='eval_accuracy' \
     --load_mistral_config='7b' \
-    --update_mistral_config="dict(max_sequence_length=262144,scan_attention=True,scan_query_chunk_size=512,scan_key_chunk_size=1024,remat_attention='nothing_saveable',scan_mlp=True,scan_mlp_chunk_size=512,remat_mlp='nothing_saveable',remat_block='nothing_saveable',scan_layers=False,attention_type='ring_blockwise',param_scan_axis=0,mesh_dim='1,1,4,16')" \
+    --load_checkpoint='trainstate_params::gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/streaming_train_state' \
+    --update_mistral_config="dict(max_sequence_length=262144,scan_attention=True,scan_query_chunk_size=1024,scan_key_chunk_size=1024,remat_attention='nothing_saveable',scan_mlp=True,scan_mlp_chunk_size=1024,remat_mlp='nothing_saveable',remat_block='nothing_saveable',scan_layers=False,attention_type='ring_blockwise',param_scan_axis=0,mesh_dim='1,1,4,16')" \
     --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
     --train_dataset.text_processor.fields="text" \
     --train_dataset.text_processor.tag="language" \
     --train_dataset.type=json \
     --train_dataset.json_dataset.path='gs://hxtpu_bucket/v3_sg_openhermes.slimpajama.train.instruct.jsonl' \
-    --train_dataset.json_dataset.batch_size=1 \
+    --train_dataset.json_dataset.batch_size=4 \
     --train_dataset.json_dataset.tokenizer_processes=16 \
     --train_dataset.json_dataset.seq_length=262144 \
     --eval_dataset.text_processor.tag="category" \
     --eval_dataset.type=json \
     --eval_dataset.text_processor_class='InstructSingleChoiceTextProcessor' \
     --eval_dataset.json_dataset.path='gs://hxtpu_bucket/sgeval_lite.jsonl' \
-    --eval_dataset.json_dataset.batch_size=1 \
+    --eval_dataset.json_dataset.batch_size=4 \
     --eval_dataset.json_dataset.enable_padding=True \
     --eval_dataset.json_dataset.tokenizer_processes=16 \
     --eval_dataset.json_dataset.seq_length=262144 \
