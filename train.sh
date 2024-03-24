@@ -15,7 +15,8 @@ WANDB__SERVICE_WAIT=300 WANDB_MODE=offline python3 -m EasyLM.models.mistral.mist
     --save_best=True \
     --best_metric='eval_accuracy' \
     --load_mistral_config='7b' \
-    --load_checkpoint='trainstate_params::gs://hxtpu_bucket/sea_mistral_7b_outputs/mix_sea_mc/streaming_train_state' \
+    --load_checkpoint='trainstate::gs://hxtpu_bucket/regional_sea_mistral_7b_inst_pretrain_unified/EasyLM-13--inst_pretrain_unified/streaming_train_state' \
+    --load_dataset_state='gs://hxtpu_bucket/regional_sea_mistral_7b_inst_pretrain_unified/EasyLM-13--inst_pretrain_unified/dataset.pkl' \
     --tokenizer.vocab_file='gs://hxtpu_bucket/chinese_mistral_tokenizer.model' \
     --mistral.max_sequence_length=131072 \
     --train_dataset.text_processor.fields="text" \
